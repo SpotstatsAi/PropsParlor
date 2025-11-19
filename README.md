@@ -47,7 +47,7 @@
     <a href="injuries.html">🟥 Today’s Injury Report</a>
   </div>
 
-  <p>Welcome to your NBA research hub. Update <strong>injuries.html</strong> daily—everything else stays mostly static.</p>
+
 
 </body>
 </html>
