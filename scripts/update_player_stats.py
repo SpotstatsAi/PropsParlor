@@ -21,8 +21,8 @@ from bs4 import BeautifulSoup
 YEAR = 2026
 
 BASE = "https://www.brefdata.com"   # BR mirror
-PER_GAME_URL = f"{BASE}/leagues/NBA_{YEAR}_per_game.html"
-ADV_URL      = f"{BASE}/leagues/NBA_{YEAR}_advanced.html"
+PER_GAME_CSV = f"https://widgets.sports-reference.com/w2.csv?site=bbr&url=/leagues/NBA_{YEAR}_per_game.html"
+ADV_CSV      = f"https://widgets.sports-reference.com/w2.csv?site=bbr&url=/leagues/NBA_{YEAR}_advanced.html"
 
 # Map your team codes -> Basketball Reference team codes
 TEAM_ALIASES = {
@@ -33,6 +33,18 @@ TEAM_ALIASES = {
     # Add more here if you ever need them
 }
 
+import csv
+from io import StringIO
+
+def fetch_csv(url: str):
+    print(f"Fetching CSV: {url}", file=sys.stderr)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (SpotstatsAi mirror scraper)",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+    resp = requests.get(url, headers=headers, timeout=30)
+    resp.raise_for_status()
+    return list(csv.DictReader(StringIO(resp.text)))
 
 def to_bref_team(team_code: str) -> str:
     return TEAM_ALIASES.get(team_code, team_code)
@@ -71,14 +83,39 @@ def fetch_table_rows(url: str, table_id: str):
     return tbody.find_all("tr")
 
 def parse_per_game():
-    """
-    Returns:
-      per_by_name_team: dict[(player_name, team_code)] -> per-game stats dict
-      tot_by_name:      dict[player_name]              -> 'TOT' per-game stats dict
-    """
-    rows = fetch_table_rows(PER_GAME_URL, "per_game_stats")
-    per_by_name_team: Dict[Tuple[str, str], dict] = {}
-    tot_by_name: Dict[str, dict] = {}
+    rows = fetch_csv(PER_GAME_CSV)
+
+    per_by_name_team = {}
+    tot_by_name = {}
+
+    for row in rows:
+        name = row["Player"].strip()
+        team = row["Tm"].strip()
+
+        record = {
+            "games": int(row["G"] or 0),
+            "min": float(row["MP"] or 0),
+            "pts": float(row["PTS"] or 0),
+            "reb": float(row["TRB"] or 0),
+            "ast": float(row["AST"] or 0),
+            "stl": float(row["STL"] or 0),
+            "blk": float(row["BLK"] or 0),
+            "tov": float(row["TOV"] or 0),
+            "fg3a": float(row["3PA"] or 0),
+            "fg3_pct": float(row["3P%"] or 0),
+            "fga": float(row["FGA"] or 0),
+            "fg_pct": float(row["FG%"] or 0),
+            "fta": float(row["FTA"] or 0),
+            "ft_pct": float(row["FT%"] or 0),
+        }
+
+        if team == "TOT":
+            tot_by_name[name] = record
+        else:
+            per_by_name_team[(name, team)] = record
+
+    return per_by_name_team, tot_by_name
+
 
     def get_float(row, stat):
         cell = row.find("td", {"data-stat": stat})
@@ -136,15 +173,26 @@ def parse_per_game():
 
     return per_by_name_team, tot_by_name
 
-
 def parse_advanced_usage():
-    """
-    Returns:
-      usage_by_name: dict[player_name] -> USG% (float, e.g. 24.5)
-    Uses the 'TOT' row when present for that player.
-    """
-    rows = fetch_table_rows(ADV_URL, "advanced_stats")
-    usage_by_name: Dict[str, float] = {}
+    rows = fetch_csv(ADV_CSV)
+    usage_by_name = {}
+
+    for row in rows:
+        name = row["Player"].strip()
+        team = row["Tm"].strip()
+
+        usg = row.get("USG%")
+        if not usg:
+            continue
+
+        usg_val = float(usg)
+
+        if team == "TOT":
+            usage_by_name[name] = usg_val
+        else:
+            usage_by_name.setdefault(name, usg_val)
+
+    return usage_by_name
 
     def get_float(row, stat):
         cell = row.find("td", {"data-stat": stat})
