@@ -23,7 +23,7 @@ PROXY = "https://bbr-proxy.dblair1027.workers.dev/?url="
 PER_GAME_HTML = f"https://www.basketball-reference.com/leagues/NBA_{YEAR}_per_game.html"
 ADV_HTML      = f"https://www.basketball-reference.com/leagues/NBA_{YEAR}_advanced.html"
 
-PER_GAME_ID = "per_game"
+PER_GAME_ID = "per_game_stats"
 ADVANCED_ID = "advanced"
 
 TEAM_ALIASES = {
