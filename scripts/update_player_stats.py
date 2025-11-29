@@ -4,10 +4,13 @@ Pull current-season PER GAME + ADVANCED stats from Basketball Reference
 (via your Cloudflare Worker proxy) and produce player_stats.json
 matching app.js expectations.
 
-This version:
-- Supports BR "comment-wrapped" tables (<!-- ... -->)
-- Scrapes correctly from bbr-proxy Worker
-- Produces perfect stats for players in rosters.json
+Fully patched version:
+- Handles BR "comment wrapped" tables
+- Properly extracts player names from <th>
+- Normalizes names ("Adebayo, Bam" -> "Bam Adebayo")
+- Resolves TOT vs team rows correctly
+- Works behind Cloudflare Worker
+- Produces correct JSON for your Prop Engine
 """
 
 import json
@@ -35,8 +38,20 @@ TEAM_ALIASES = {
 def to_bref_team(c):
     return TEAM_ALIASES.get(c, c)
 
-# ============ FETCH HELPERS ============
 
+# ---------- NAME NORMALIZATION ----------
+def normalize_name(name: str) -> str:
+    """Convert BR names like 'Adebayo, Bam*' to 'Bam Adebayo'."""
+    name = name.replace("*", "").replace("†", "").strip()
+
+    if "," in name:
+        last, first = [x.strip() for x in name.split(",", 1)]
+        return f"{first} {last}"
+
+    return name
+
+
+# ---------- FETCH HELPERS ----------
 def fetch_via_proxy(url: str) -> str:
     full = PROXY + requests.utils.quote(url, safe="")
     print(f"Fetching via proxy: {full}", file=sys.stderr)
@@ -49,37 +64,38 @@ def fetch_via_proxy(url: str) -> str:
     resp.raise_for_status()
     return resp.text
 
-# ============ TABLE SCRAPER ============
 
+# ---------- COMMENTED TABLE EXTRACTION ----------
 def extract_commented_tables(soup: BeautifulSoup):
-    """Return a list of extracted HTML tables that were inside <!-- --> comments."""
     tables = []
     for c in soup.find_all(string=lambda text: isinstance(text, Comment)):
         try:
             sub = BeautifulSoup(c, "html.parser")
             for t in sub.find_all("table"):
                 tables.append(t)
-        except Exception:
+        except:
             continue
     return tables
 
+
+# ---------- LOAD TABLE ----------
 def get_table(html: str, table_id: str):
     soup = BeautifulSoup(html, "html.parser")
 
-    # 1. Try direct first
+    # 1. Direct table
     table = soup.find("table", id=table_id)
     if table:
         return table
 
-    # 2. Try inside comment-wrapped tables
+    # 2. Commented tables
     for t in extract_commented_tables(soup):
         if t.get("id") == table_id:
             return t
 
-    raise RuntimeError(f"Table id='{table_id}' not found (even in comments)")
+    raise RuntimeError(f"Table id='{table_id}' NOT found (even in comments)")
 
-# ============ PARSE PER-GAME ============
 
+# ---------- PER GAME PARSER ----------
 def parse_per_game():
     html = fetch_via_proxy(PER_GAME_HTML)
     table = get_table(html, PER_GAME_ID)
@@ -90,23 +106,27 @@ def parse_per_game():
     per = {}
     tot = {}
 
-    # NOTE: Basketball-Reference puts the player name in a <th>, not <td>.
-    # We look for ANY element with the given data-stat.
     def cell(r, stat):
-        el = r.find(attrs={"data-stat": stat})
-        return el.get_text(strip=True) if el else ""
+        td = r.find("td", {"data-stat": stat})
+        if td:
+            return td.get_text(strip=True)
+
+        # Some player names appear in <th>
+        th = r.find("th", {"data-stat": stat})
+        return th.get_text(strip=True) if th else ""
 
     def num(v):
         try:
             return float(v)
-        except Exception:
+        except:
             return 0.0
 
     for r in rows:
         if "class" in r.attrs and "thead" in r["class"]:
             continue
 
-        name = cell(r, "player")
+        raw_name = cell(r, "player")
+        name = normalize_name(raw_name)
         team = cell(r, "team_id")
 
         if not name or not team:
@@ -136,8 +156,8 @@ def parse_per_game():
 
     return per, tot
 
-# ============ PARSE ADVANCED ============
 
+# ---------- ADVANCED PARSER ----------
 def parse_advanced():
     html = fetch_via_proxy(ADV_HTML)
     table = get_table(html, ADVANCED_ID)
@@ -145,16 +165,19 @@ def parse_advanced():
     rows = table.find("tbody").find_all("tr")
     usage = {}
 
-    # Same fix here: look for any element with data-stat
     def cell(r, stat):
-        el = r.find(attrs={"data-stat": stat})
-        return el.get_text(strip=True) if el else ""
+        td = r.find("td", {"data-stat": stat})
+        if td:
+            return td.get_text(strip=True)
+        th = r.find("th", {"data-stat": stat})
+        return th.get_text(strip=True) if th else ""
 
     for r in rows:
         if "class" in r.attrs and "thead" in r["class"]:
             continue
 
-        name = cell(r, "player")
+        raw_name = cell(r, "player")
+        name = normalize_name(raw_name)
         team = cell(r, "team_id")
         usg  = cell(r, "usg_pct")
 
@@ -163,10 +186,9 @@ def parse_advanced():
 
         try:
             val = float(usg)
-        except Exception:
+        except:
             val = 0.0
 
-        # Prefer TOT row first
         if team == "TOT":
             usage[name] = val
         else:
@@ -174,8 +196,8 @@ def parse_advanced():
 
     return usage
 
-# ============ MAIN ============
 
+# ---------- MAIN ----------
 def main():
     with open("rosters.json", "r", encoding="utf-8") as f:
         rosters = json.load(f)
@@ -222,6 +244,7 @@ def main():
         print("\nPlayers not found:", file=sys.stderr)
         for n, t in missing:
             print(f" - {n} ({t})", file=sys.stderr)
+
 
 if __name__ == "__main__":
     main()
