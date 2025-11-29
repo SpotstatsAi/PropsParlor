@@ -1,119 +1,45 @@
-body {
-  background: #0a0a0a;
-  color: #f2f2f2;
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-}
-
-header {
-  padding: 20px;
-  text-align: center;
-  background: #111;
-  border-bottom: 1px solid #222;
-}
-
-h1 {
-  margin: 0;
-  font-size: 26px;
-}
-
-h2 {
-  margin-top: 25px;
-  padding-left: 15px;
-  font-size: 20px;
-  color: #ddd;
-}
-
-.load-button {
-  margin-top: 12px;
-  padding: 10px 18px;
-  background: #0055ff;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 15px;
-  cursor: pointer;
-}
-
-.scroll-list {
-  padding: 10px 15px;
-  max-height: 240px;
-  overflow-y: auto;
-  border-bottom: 1px solid #222;
-}
-
-.teamEntry,
-.gameCard {
-  padding: 10px;
-  margin-bottom: 8px;
-  background: #141414;
-  border-radius: 6px;
-  cursor: pointer;
-  border: 1px solid #222;
-}
-
-.teamEntry:hover,
-.gameCard:hover {
-  background: #1f1f1f;
-}
-
-#filters {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  padding: 15px 0;
-  border-bottom: 1px solid #222;
-}
-
-.filterButton {
-  padding: 8px 15px;
-  cursor: pointer;
-  border-radius: 6px;
-  background: #222;
-  color: white;
-  border: 1px solid #333;
-}
-
-.filterActive {
-  background: #0055ff;
-}
-
-#propsOutput {
-  padding: 15px;
-}
-
 .propRow {
   display: flex;
   justify-content: space-between;
-  padding: 10px;
-  background: #111;
-  border-bottom: 1px solid #222;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #333;
+  background: #1b1b1b;
+  border-radius: 6px;
+  margin-bottom: 8px;
 }
 
-.propGreen {
-  color: #4CFF4C;
+.propMain {
+  width: 28%;
+}
+.propMatchups {
+  width: 28%;
+  font-size: 0.85em;
+  opacity: 0.9;
+}
+.propAdvanced {
+  width: 28%;
+  font-size: 0.85em;
+  opacity: 0.9;
+}
+
+.tierTag {
+  width: 12%;
   font-weight: bold;
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 6px;
 }
 
-.propYellow {
-  color: #FFD93D;
-  font-weight: bold;
+.tier-green {
+  background: #1b5e20;
+  color: #b9f6ca;
 }
-
-.propRed {
-  color: #FF4C4C;
-  font-weight: bold;
+.tier-yellow {
+  background: #f9a825;
+  color: #fff9c4;
 }
-
-.propMeta {
-  color: #aaa;
-  font-size: 14px;
-}
-
-@media (max-width: 600px) {
-  .propRow {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.tier-red {
+  background: #b71c1c;
+  color: #ffcdd2;
 }
