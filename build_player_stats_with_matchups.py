@@ -20,7 +20,7 @@ import requests
 
 # ================== CONFIG ==================
 
-API_KEY = os.getenv("SPORTSDATA_API_KEY", "YOUR_API_KEY_HERE")  # replace or use env
+API_KEY = os.getenv("SPORTSDATA_API_KEY", "61d3779041f44f37bd511dbe1c70e84e")  # replace or use env
 SEASON = 2026  # 2025-26 season
 
 # Stats endpoints
