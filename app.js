@@ -144,11 +144,23 @@ function renderProps() {
     clone.querySelector(".oppRank").textContent =
       `Def Rank: ${p.stats.def_rank || "N/A"}`;
 
-    clone.querySelector(".usageLine").textContent =
-      `Usage: ${p.stats.usage?.toFixed(1) || "0"}%`;
+    // Season Averages
+clone.querySelector(".avgPts").textContent =
+  `PTS: ${p.stats.pts?.toFixed(1) || 0}`;
 
-    clone.querySelector(".paceLine").textContent =
-      `Pace: ${p.stats.pace || "N/A"}`;
+clone.querySelector(".avgReb").textContent =
+  `REB: ${p.stats.reb?.toFixed(1) || 0}`;
+
+clone.querySelector(".avgAst").textContent =
+  `AST: ${p.stats.ast?.toFixed(1) || 0}`;
+
+// Advanced
+clone.querySelector(".usageLine").textContent =
+  `Usage: ${p.stats.usage?.toFixed(1) || 0}%`;
+
+clone.querySelector(".paceLine").textContent =
+  `Pace: ${p.stats.pace || "N/A"}`;
+
 
     const tag = clone.querySelector(".tierTag");
     tag.textContent = p.tier;
