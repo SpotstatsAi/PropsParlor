@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NBA Prop Engine</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <header>
+    <h1>NBA Prop Engine</h1>
+    <button id="loadButton" class="load-button">Load Today’s Games</button>
+  </header>
+
+  <section id="teamsSection">
+    <h2>Teams</h2>
+    <div id="teamsList" class="scroll-list"></div>
+  </section>
+
+  <section id="gamesSection">
+    <h2>Today's Games</h2>
+    <div id="games" class="scroll-list"></div>
+  </section>
+
+  <section id="filters">
+    <button class="filterButton filterActive" data-filter="all">All</button>
+    <button class="filterButton" data-filter="green">Green</button>
+    <button class="filterButton" data-filter="yellow">Yellow</button>
+    <button class="filterButton" data-filter="red">Red</button>
+  </section>
+
+  <section id="propsSection">
+    <h2>Player Props</h2>
+    <div id="propsOutput"></div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
