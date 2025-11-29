@@ -87,15 +87,17 @@ def load_schedule_for_today():
 # ================== SPORTS DATA FETCHERS ==================
 
 def fetch_player_season_stats(season: int):
-    """
-    Uses SportsData.io PlayerSeasonStatsBySeason endpoint.
+    # SportsData uses the first year of the season (2025 for 2025-26)
+    sd_season = season - 1  
 
-    Docs pattern (adjust if needed):
-    GET /v3/nba/stats/json/PlayerSeasonStatsBySeason/{season}
-    """
-    url = f"{STATS_BASE}/PlayerSeasonStatsBySeason/{season}"
-    print(f"Fetching player season stats for {season}...")
+    url = (
+        f"https://api.sportsdata.io/v3/nba/stats/json/"
+        f"PlayerSeasonStats/{sd_season}?key={API_KEY}"
+    )
+
+    print(f"Fetching player season stats for SportsData season {sd_season}...")
     return fetch_json(url)
+
 
 
 def fetch_team_season_stats(season: int):
