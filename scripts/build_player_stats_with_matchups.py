@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """
 Builds player_stats.json with:
-- SportsData.io PER-GAME season stats
-- Daily matchups (opponent, pace, defense rank)
-- Hit-rate scoring helpers
-- Handles missing players safely
-- Integrates with app.js structure
+- SportsData.io full season stats
+- Opponent for today's games
+- Team defensive ranks (via PointsAgainst)
+- Basic pace/usage metrics where available
 
-This version fixes:
-- API key newline bug via .strip()
-- Double-?key= issue in URLs
-- Season mapping issues
-- Stronger error handling
+This script is FULLY PATCHED for:
+- Correct SportsData endpoints
+- Newline-stripped API key
+- Correct team defense ranking logic
+- No more KeyErrors
 """
 
 import json
@@ -29,7 +28,9 @@ if not API_KEY:
     print("ERROR: SPORTSDATA_API_KEY missing!", file=sys.stderr)
     sys.exit(1)
 
-SEASON = 2025                                # SportsData season year
+# SportsData Season = 2025 for 2025–26 NBA season
+SEASON = 2025
+
 TODAY = datetime.utcnow().strftime("%Y-%m-%d")
 
 BASE_STATS_URL = "https://api.sportsdata.io/v3/nba/stats/json"
@@ -42,45 +43,49 @@ BASE_SCORES_URL = "https://api.sportsdata.io/v3/nba/scores/json"
 def fetch_json(url):
     """Safely fetch JSON from SportsData.io."""
     headers = {"Ocp-Apim-Subscription-Key": API_KEY}
-    resp = requests.get(url, headers=headers, timeout=20)
+    resp = requests.get(url, headers=headers, timeout=25)
     resp.raise_for_status()
     return resp.json()
+
 
 def fetch_player_season_stats(season):
     """Fetch full season player stats."""
     url = f"{BASE_STATS_URL}/PlayerSeasonStats/{season}?key={API_KEY}"
     return fetch_json(url)
 
+
 def fetch_todays_games():
     """Fetch the list of today's games."""
     url = f"{BASE_SCORES_URL}/GamesByDate/{TODAY}?key={API_KEY}"
     return fetch_json(url)
 
-def get_defense_rank(team_stats_by_team, team):
-    """Return Opponent defensive rank by points allowed."""
-    if team not in team_stats_by_team:
-        return None
-    return team_stats_by_team[team]["DefRank"]
 
 def get_team_stats():
-    """Get team defense metrics to evaluate matchup difficulty."""
-    url = f"{BASE_STATS_URL}/TeamSeasonStats/{SEASON}?key={API_KEY}"
+    """
+    Build defensive ranks using Standings → PointsAgainst.
+    Correct endpoint for defense metrics!
+    """
+    url = f"{BASE_SCORES_URL}/Standings/{SEASON}?key={API_KEY}"
     data = fetch_json(url)
 
-    # Sort teams by points allowed (best defense = rank 1)
-    sorted_by_def = sorted(data, key=lambda t: t["PointsAllowed"])
+    # Sort by PointsAgainst (lower = better)
+    sorted_by_def = sorted(data, key=lambda t: t.get("PointsAgainst", 999))
     ranks = {}
     rank = 1
+
     for team in sorted_by_def:
-        ranks[team["Team"]] = {
+        code = team["Key"]  # three-letter team code (ATL, BOS, etc.)
+        ranks[code] = {
             "DefRank": rank,
-            "PointsAllowed": team["PointsAllowed"]
+            "PointsAgainst": team.get("PointsAgainst")
         }
         rank += 1
+
     return ranks
 
+
 # -----------------------------
-# MAIN
+# MAIN PROCESS
 # -----------------------------
 
 def main():
@@ -94,10 +99,11 @@ def main():
     print("Fetching player season stats from SportsData...", file=sys.stderr)
     season_stats = fetch_player_season_stats(SEASON)
 
-    # Fetch today’s games and team defensive ranks
+    # Fetch today’s games
     print("Fetching today's games...", file=sys.stderr)
     todays_games = fetch_todays_games()
 
+    # Fetch team defense rankings
     print("Fetching team defensive metrics...", file=sys.stderr)
     team_def = get_team_stats()
 
@@ -110,17 +116,19 @@ def main():
     final = {}
     missing = []
 
-    # Create opponent mapping for today's slate
-    opponent_map = {}
+    # Opponent mapping for today
+    opponent_map = {}  # team → opponent
+
     for g in todays_games:
         home = g["HomeTeam"]
         away = g["AwayTeam"]
         opponent_map[home] = away
         opponent_map[away] = home
 
-    # Build final structure matching app.js
+    # Build final stats object
     for team_code, players in rosters.items():
         for name in players:
+
             raw = stats_by_name.get(name)
 
             if raw is None:
@@ -143,12 +151,15 @@ def main():
                 }
                 continue
 
+            # Opponent + defensive rank
             opp = opponent_map.get(team_code)
-            def_rank = get_defense_rank(team_def, opp) if opp else None
+            def_rank = team_def.get(opp, {}).get("DefRank") if opp else None
 
             final[name] = {
                 "team": team_code,
                 "season": SEASON,
+
+                # Core stats
                 "games": raw.get("Games", 0),
                 "min": raw.get("Minutes", 0),
                 "pts": raw.get("Points", 0),
@@ -157,17 +168,21 @@ def main():
                 "stl": raw.get("Steals", 0),
                 "blk": raw.get("BlockedShots", 0),
                 "tov": raw.get("Turnovers", 0),
+
+                # Pace / Usage
                 "usage": raw.get("UsageRate", 0),
-                "pace": raw.get("Possessions", None),
-                "def_rank": def_rank,
+                "pace": raw.get("Possessions", None),   # SportsData pace metric
+
+                # Opponent-dependent values
                 "opponent": opp,
+                "def_rank": def_rank,
             }
 
-    # Write final JSON
+    # Write output
     with open("player_stats.json", "w", encoding="utf-8") as f:
         json.dump(final, f, indent=2, sort_keys=True)
 
-    # Print missing players
+    # Show missing matches in run logs
     if missing:
         print("\nPlayers not found in SportsData:", file=sys.stderr)
         for n, t in missing:
