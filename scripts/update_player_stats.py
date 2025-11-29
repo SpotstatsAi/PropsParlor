@@ -59,7 +59,7 @@ def extract_commented_tables(soup: BeautifulSoup):
             sub = BeautifulSoup(c, "html.parser")
             for t in sub.find_all("table"):
                 tables.append(t)
-        except:
+        except Exception:
             continue
     return tables
 
@@ -90,14 +90,16 @@ def parse_per_game():
     per = {}
     tot = {}
 
+    # NOTE: Basketball-Reference puts the player name in a <th>, not <td>.
+    # We look for ANY element with the given data-stat.
     def cell(r, stat):
-        td = r.find("td", {"data-stat": stat})
-        return td.get_text(strip=True) if td else ""
+        el = r.find(attrs={"data-stat": stat})
+        return el.get_text(strip=True) if el else ""
 
     def num(v):
         try:
             return float(v)
-        except:
+        except Exception:
             return 0.0
 
     for r in rows:
@@ -143,9 +145,10 @@ def parse_advanced():
     rows = table.find("tbody").find_all("tr")
     usage = {}
 
+    # Same fix here: look for any element with data-stat
     def cell(r, stat):
-        td = r.find("td", {"data-stat": stat})
-        return td.get_text(strip=True) if td else ""
+        el = r.find(attrs={"data-stat": stat})
+        return el.get_text(strip=True) if el else ""
 
     for r in rows:
         if "class" in r.attrs and "thead" in r["class"]:
@@ -160,7 +163,7 @@ def parse_advanced():
 
         try:
             val = float(usg)
-        except:
+        except Exception:
             val = 0.0
 
         # Prefer TOT row first
