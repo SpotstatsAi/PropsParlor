@@ -5,38 +5,31 @@ and writes player_stats.json in the format app.js expects.
 
 - Top-level object keyed by full player name (exactly as in rosters.json)
 - Each value is a stats object with fields like:
-  pts, reb, ast, stl, blk, tov, min, fg3a, fg3_pct, fga, fg_pct,
-  fta, ft_pct, games, usage, team, season, pace, foul_difficulty, blowout_risk
+  pts, reb, ast, stl, blk, tov, min, fg3a, fg3_pct, fga, fg_pct, fta, ft_pct,
+  games, usage, team, season, pace, foul_difficulty, blowout_risk
 """
 
-import csv
 import json
 import sys
-from io import StringIO
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 import requests
+from bs4 import BeautifulSoup
+from urllib.parse import quote
 
 # ===== CONFIG =====
-
 # Season end year. Your 2025–26 season is "2026" on Basketball Reference.
 YEAR = 2026
 
-# Raw Basketball Reference CSV endpoints (on basketball-reference.com)
-BREF_PER_GAME_CSV = (
-    f"https://widgets.sports-reference.com/w2.csv"
-    f"?site=bbr&url=/leagues/NBA_{YEAR}_per_game.html"
-)
-BREF_ADV_CSV = (
-    f"https://widgets.sports-reference.com/w2.csv"
-    f"?site=bbr&url=/leagues/NBA_{YEAR}_advanced.html"
-)
+# Basketball Reference pages
+PER_GAME_URL = f"https://www.basketball-reference.com/leagues/NBA_{YEAR}_per_game.html"
+ADV_URL      = f"https://www.basketball-reference.com/leagues/NBA_{YEAR}_advanced.html"
 
-# Your Cloudflare Worker proxy base URL
-PROXY_BASE = "https://bbr-proxy.dblair1027.workers.dev/"
+# Your Cloudflare Worker base URL (the one that's working in your browser)
+PROXY_BASE = "https://bbr-proxy.dblair1027.workers.dev"
 
 # Map your team codes -> Basketball Reference team codes
-TEAM_ALIASES: Dict[str, str] = {
+TEAM_ALIASES = {
     "BKN": "BRK",
     "CHA": "CHO",
     "PHX": "PHO",
@@ -46,88 +39,99 @@ TEAM_ALIASES: Dict[str, str] = {
 
 
 def to_bref_team(team_code: str) -> str:
-    """Convert your team code to Basketball Reference's code if needed."""
+    """Translate your team code to Basketball Reference's code if needed."""
     return TEAM_ALIASES.get(team_code, team_code)
 
 
-def fetch_csv_via_proxy(source_url: str) -> List[Dict[str, str]]:
+def fetch_html_via_proxy(url: str) -> str:
     """
     Hit your Cloudflare Worker, which then fetches Basketball Reference.
 
-    We pass the real BR URL as a `url` query param to the Worker.
+    We pass the BR URL as a query parameter:
+    https://bbr-proxy.../?url=<encoded real url>
     """
-    print(f"Fetching CSV via proxy: {source_url}", file=sys.stderr)
+    proxied = f"{PROXY_BASE}/?url={quote(url, safe='')}"
+    print(f"Fetching via proxy: {proxied}", file=sys.stderr)
 
     headers = {
         "User-Agent": "Mozilla/5.0 (SpotstatsAi stats updater)",
         "Accept-Language": "en-US,en;q=0.9",
     }
-
-    # requests will URL-encode the `url` param for us
-    resp = requests.get(
-        PROXY_BASE,
-        params={"url": source_url},
-        headers=headers,
-        timeout=60,
-    )
+    resp = requests.get(proxied, headers=headers, timeout=45)
     resp.raise_for_status()
+    return resp.text
 
-    return list(csv.DictReader(StringIO(resp.text)))
+
+def _get_float(row, stat: str):
+    cell = row.find("td", {"data-stat": stat})
+    txt = cell.get_text(strip=True) if cell else ""
+    if txt in ("", "NA"):
+        return None
+    try:
+        return float(txt)
+    except ValueError:
+        return None
 
 
-def parse_per_game() -> Tuple[Dict[Tuple[str, str], Dict], Dict[str, Dict]]:
+def _get_int(row, stat: str):
+    cell = row.find("td", {"data-stat": stat})
+    txt = cell.get_text(strip=True) if cell else ""
+    if not txt:
+        return None
+    try:
+        return int(txt)
+    except ValueError:
+        return None
+
+
+def parse_per_game():
     """
-    Parse per-game CSV.
+    Scrape the per-game table (id='per_game_stats') from BR (via proxy).
 
     Returns:
-      - per_by_name_team: (name, team_code) -> stats dict
-      - tot_by_name: name -> stats dict for 'TOT' rows
+      per_by_name_team: {(name, team): stats_dict}
+      tot_by_name: {name: stats_dict} for rows where Tm == 'TOT'
     """
-    rows = fetch_csv_via_proxy(BREF_PER_GAME_CSV)
+    html = fetch_html_via_proxy(PER_GAME_URL)
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table", id="per_game_stats")
+    if table is None:
+        raise RuntimeError("Could not find table with id='per_game_stats'")
 
-    per_by_name_team: Dict[Tuple[str, str], Dict] = {}
-    tot_by_name: Dict[str, Dict] = {}
+    tbody = table.find("tbody")
+    rows = tbody.find_all("tr")
+
+    per_by_name_team: Dict[Tuple[str, str], dict] = {}
+    tot_by_name: Dict[str, dict] = {}
 
     for row in rows:
-        name = (row.get("Player") or "").strip()
-        team = (row.get("Tm") or "").strip()
-
-        if not name or not team:
+        # Skip header sub-rows
+        if row.get("class") and "thead" in row["class"]:
             continue
 
-        def f(key: str) -> float:
-            val = (row.get(key) or "").strip()
-            if val in ("", "NA"):
-                return 0.0
-            try:
-                return float(val)
-            except ValueError:
-                return 0.0
+        player_cell = row.find("td", {"data-stat": "player"})
+        team_cell = row.find("td", {"data-stat": "team_id"})
+        if player_cell is None or team_cell is None:
+            continue
 
-        def i(key: str) -> int:
-            val = (row.get(key) or "").strip()
-            if not val:
-                return 0
-            try:
-                return int(val)
-            except ValueError:
-                return 0
+        name = player_cell.get_text(strip=True)
+        team = team_cell.get_text(strip=True)
 
         record = {
-            "games": i("G"),
-            "min": f("MP"),
-            "pts": f("PTS"),
-            "reb": f("TRB"),
-            "ast": f("AST"),
-            "stl": f("STL"),
-            "blk": f("BLK"),
-            "tov": f("TOV"),
-            "fg3a": f("3PA"),
-            "fg3_pct": f("3P%"),
-            "fga": f("FGA"),
-            "fg_pct": f("FG%"),
-            "fta": f("FTA"),
-            "ft_pct": f("FT%"),
+            "games": _get_int(row, "g") or 0,
+            "min": _get_float(row, "mp_per_g") or 0.0,
+            "pts": _get_float(row, "pts_per_g") or 0.0,
+            "reb": _get_float(row, "trb_per_g") or 0.0,
+            "ast": _get_float(row, "ast_per_g") or 0.0,
+            "stl": _get_float(row, "stl_per_g") or 0.0,
+            "blk": _get_float(row, "blk_per_g") or 0.0,
+            "tov": _get_float(row, "tov_per_g") or 0.0,
+            "fg3a": _get_float(row, "fg3a_per_g") or 0.0,
+            "fg3_pct": _get_float(row, "fg3_pct") or 0.0,
+            "fga": _get_float(row, "fga_per_g") or 0.0,
+            "fg_pct": _get_float(row, "fg_pct") or 0.0,
+            "fta": _get_float(row, "fta_per_g") or 0.0,
+            "ft_pct": _get_float(row, "ft_pct") or 0.0,
         }
 
         if team == "TOT":
@@ -138,52 +142,59 @@ def parse_per_game() -> Tuple[Dict[Tuple[str, str], Dict], Dict[str, Dict]]:
     return per_by_name_team, tot_by_name
 
 
-def parse_advanced_usage() -> Dict[str, float]:
+def parse_advanced_usage():
     """
-    Parse advanced CSV and pull usage rate (USG%).
+    Scrape the advanced table (id='advanced_stats') and pull USG%.
 
-    Returns: name -> usage%
+    Returns:
+      usage_by_name: {name: usage_float}
     """
-    rows = fetch_csv_via_proxy(BREF_ADV_CSV)
+    html = fetch_html_via_proxy(ADV_URL)
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table", id="advanced_stats")
+    if table is None:
+        raise RuntimeError("Could not find table with id='advanced_stats'")
+
+    tbody = table.find("tbody")
+    rows = tbody.find_all("tr")
+
     usage_by_name: Dict[str, float] = {}
 
     for row in rows:
-        name = (row.get("Player") or "").strip()
-        team = (row.get("Tm") or "").strip()
-        if not name or not team:
+        if row.get("class") and "thead" in row["class"]:
             continue
 
-        usg_str = (row.get("USG%") or "").strip()
-        if not usg_str or usg_str == "NA":
+        player_cell = row.find("td", {"data-stat": "player"})
+        team_cell = row.find("td", {"data-stat": "team_id"})
+        if player_cell is None or team_cell is None:
             continue
 
-        try:
-            usg_val = float(usg_str)
-        except ValueError:
+        name = player_cell.get_text(strip=True)
+        team = team_cell.get_text(strip=True)
+        usg = _get_float(row, "usg_pct")
+        if usg is None:
             continue
 
-        # Prefer 'TOT' when available
         if team == "TOT":
-            usage_by_name[name] = usg_val
+            usage_by_name[name] = usg
         else:
-            usage_by_name.setdefault(name, usg_val)
+            usage_by_name.setdefault(name, usg)
 
     return usage_by_name
 
 
-def main() -> None:
+def main():
     # 1) Load rosters.json so we only keep players you care about
     with open("rosters.json", "r", encoding="utf-8") as f:
         rosters = json.load(f)
 
-    # 2) Fetch and parse stats from Basketball Reference (via Worker)
+    # 2) Scrape per-game and advanced usage
     per_by_name_team, tot_by_name = parse_per_game()
     usage_by_name = parse_advanced_usage()
 
-    result: Dict[str, Dict] = {}
-    missing: List[Tuple[str, str]] = []
+    result = {}
+    missing = []
 
-    # 3) Build the JSON keyed by player name
     for team_code, players in rosters.items():
         bref_team = to_bref_team(team_code)
 
@@ -195,8 +206,8 @@ def main() -> None:
             if stats is None:
                 stats = tot_by_name.get(name)
 
-            # If still missing, create a neutral entry so app.js doesn't break
             if stats is None:
+                # Not found at all – create a neutral entry so app.js doesn't break
                 missing.append((name, team_code))
                 stats = {
                     "games": 0,
@@ -220,8 +231,9 @@ def main() -> None:
                 {
                     "team": team_code,
                     "season": YEAR,
+                    # If usage is missing, just set 0 so the scorePlayer formula is neutral
                     "usage": usage_by_name.get(name, 0.0),
-                    # Neutral placeholders you can refine later
+                    # These you can refine later; keep neutral for now
                     "pace": None,
                     "foul_difficulty": None,
                     "blowout_risk": None,
@@ -231,11 +243,9 @@ def main() -> None:
             # Final key in player_stats.json is the full name string (must match rosters.json)
             result[name] = out
 
-    # 4) Write player_stats.json
     with open("player_stats.json", "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, sort_keys=True)
 
-    # 5) Log any players we couldn’t find (for debugging)
     if missing:
         print("Players not found on Basketball Reference:", file=sys.stderr)
         for name, team_code in sorted(missing):
