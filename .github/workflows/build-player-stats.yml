@@ -1,38 +1,31 @@
-name: Update player stats
+name: Update Player Stats Daily
 
 on:
   schedule:
-    # once a day at 7:00 UTC (adjust if you want)
-    - cron: "0 7 * * *"
+    - cron: "0 */12 * * *"   # twice per day
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  update-player-stats:
+  update:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+    - name: Checkout repo
+      uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests beautifulsoup4
+    - name: Install dependencies
+      run: pip install requests
 
-      - name: Build player_stats.json from Basketball Reference
-        run: python scripts/update_player_stats.py
+    - name: Run stats updater
+      run: python scripts/update_player_stats.py
 
-      - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: update player_stats.json [auto]"
-          file_pattern: |
-            player_stats.json
+    - name: Commit updated stats
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "update player_stats.json [auto]"
+        file_pattern: player_stats.json
