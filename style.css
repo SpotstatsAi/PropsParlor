@@ -1,23 +1,17 @@
+/* Global */
+
 :root {
-  --bg-main: #05070f;
-  --bg-panel: #111522;
-  --bg-card: #171c2a;
-  --bg-card-soft: #1e2434;
-
-  --border-subtle: #262b3b;
-  --text-main: #f5f7ff;
-  --text-muted: #a5afc6;
-  --accent: #2f80ff;
-
-  --green: #01c38d;
-  --yellow: #ffb400;
-  --red: #ff4d4f;
-
-  --radius-lg: 14px;
-  --radius-md: 10px;
-  --radius-pill: 999px;
-
-  --shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.55);
+  --bg-main: #04060a;
+  --bg-panel: #11141d;
+  --bg-panel-soft: #181b25;
+  --accent: #1f6fff;
+  --accent-soft: rgba(31, 111, 255, 0.14);
+  --text-main: #f5f5ff;
+  --text-soft: #a8b0c4;
+  --border-subtle: #242836;
+  --danger: #ff4b5c;
+  --warning: #f5b400;
+  --success: #1cc88a;
 }
 
 *,
@@ -30,26 +24,25 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg-main);
-  color: var(--text-main);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 14px;
+  height: 100%;
 }
 
-/* ---------- TOPBAR ---------- */
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #18213a 0, #04060a 55%, #020309 100%);
+  color: var(--text-main);
+}
+
+/* Top bar */
 
 .topbar {
-  border-bottom: 1px solid var(--border-subtle);
-  background: radial-gradient(circle at top, #141b2f 0, var(--bg-main) 55%);
-}
-
-.topbar-inner {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 14px 20px;
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  padding: 14px 28px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  background: linear-gradient(to right, #050712, #13172a);
 }
 
 .brand {
@@ -58,62 +51,63 @@ body {
   gap: 4px;
 }
 
-.brand-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.brand-tag {
   font-size: 11px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 6px;
-  border: 1px solid #3b4b76;
-  color: #9db4ff;
+  color: var(--text-soft);
 }
 
 .brand-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
 }
 
-/* Load button */
+/* Buttons */
 
-.primaryButton {
-  background: #007aff;
-  color: #fff;
+.primary-btn {
   border: none;
+  outline: none;
+  padding: 9px 18px;
   border-radius: 999px;
-  padding: 8px 18px;
+  background: radial-gradient(circle at top, #4a8bff, #1f6fff);
+  color: #fff;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 0 20px rgba(0, 122, 255, 0.6);
-  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  box-shadow: 0 0 12px rgba(31, 111, 255, 0.6);
 }
 
-.primaryButton:hover {
-  background: #1483ff;
-  transform: translateY(-1px);
-  box-shadow: 0 0 22px rgba(0, 122, 255, 0.8);
+.primary-btn:hover {
+  filter: brightness(1.05);
 }
 
-.primaryButton:active {
-  transform: translateY(0);
-  box-shadow: 0 0 12px rgba(0, 122, 255, 0.5);
+.viewBtn,
+.pill {
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-soft);
+  padding: 5px 14px;
+  font-size: 11px;
+  cursor: pointer;
 }
 
-/* ---------- LAYOUT ---------- */
+.viewBtn-active,
+.pill-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Layout */
 
 .layout {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 16px 18px 30px;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 18px;
+  padding: 18px 24px 32px;
 }
-
-/* Sidebar */
 
 .sidebar {
   display: flex;
@@ -121,160 +115,109 @@ body {
   gap: 14px;
 }
 
+.main {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Panels */
+
 .panel {
   background: var(--bg-panel);
-  border-radius: var(--radius-lg);
-  padding: 12px 12px 10px;
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-soft);
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
 }
 
 .panel h2 {
   font-size: 15px;
-  margin: 0 0 10px;
+  margin: 0 0 10px 2px;
 }
 
-.scroll-list {
-  max-height: 320px;
-  overflow-y: auto;
-}
+/* Games list */
 
-/* Games list cards */
+.games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .gameCard {
-  background: var(--bg-card-soft);
-  border-radius: var(--radius-md);
   padding: 8px 10px;
-  margin-bottom: 8px;
-  font-size: 13px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  background: var(--bg-panel-soft);
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+  font-size: 12px;
 }
 
 .gameCard strong {
   display: block;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .gameCard:hover {
-  background: #232a3b;
-  border-color: rgba(47, 128, 255, 0.55);
-  transform: translateY(-1px);
+  border-color: var(--accent);
 }
 
 /* Teams list */
 
+.teams-list {
+  max-height: 260px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-subtle);
+}
+
 .teamEntry {
-  padding: 6px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  font-size: 13px;
+  padding: 6px 4px;
+  border-bottom: 1px solid #191c28;
+  font-size: 12px;
   cursor: pointer;
 }
 
 .teamEntry:hover {
-  background: #171c2a;
+  color: var(--accent);
 }
 
-/* Main panel */
+/* Controls + props */
 
-.mainPanel {
-  background: var(--bg-panel);
-  border-radius: var(--radius-lg);
-  padding: 14px 18px 20px;
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-soft);
-  min-height: 520px;
-}
-
-/* Controls row: view toggle + filters */
-
-.controlsRow {
+.controls-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
   margin-bottom: 10px;
 }
 
-.sectionTitle {
-  margin: 6px 0 10px;
-  font-size: 16px;
-}
-
-/* View toggle */
-
-.viewToggle {
+.control-group {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
 }
 
-.controlLabel {
-  color: var(--text-muted);
-  font-size: 12px;
+.control-label {
+  font-size: 11px;
+  color: var(--text-soft);
 }
 
-.toggleButton {
-  background: #2a2d34;
-  color: #ccc;
-  padding: 4px 10px;
-  border-radius: 8px;
-  border: 1px solid #3c3f46;
-  cursor: pointer;
-  font-size: 12px;
-  transition: 0.15s ease;
+.props-title {
+  margin: 4px 0 10px;
+  font-size: 17px;
 }
 
-.toggleButton.active {
-  background: #007aff;
-  color: white;
-  border-color: #007aff;
-}
-
-/* Confidence filters */
-
-.filters {
+.props-list {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.filterButton {
-  background: #222633;
-  border-radius: var(--radius-pill);
-  border: 1px solid #343849;
-  padding: 4px 11px;
-  font-size: 12px;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: 0.15s ease;
-}
-
-.filterButton:hover {
-  border-color: #4a516a;
-}
-
-.filterButton.filterActive {
-  background: #007aff;
-  border-color: #007aff;
-  color: #fff;
-}
-
-/* ---------- PROP CARDS ---------- */
+/* Cards */
 
 .propCard {
-  background: var(--bg-card);
-  padding: 14px 14px 12px;
-  border-radius: var(--radius-lg);
-  border-left: 4px solid #34384a;
-  margin-bottom: 12px;
-  transition: all 0.2s ease;
-}
-
-.propCard:hover {
-  border-left-color: var(--accent);
-  background: #1b2233;
+  background: var(--bg-panel);
+  border-radius: 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
 }
 
 .propHeader {
@@ -285,148 +228,211 @@ body {
 }
 
 .propName {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .smallText {
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 11px;
+  color: var(--text-soft);
+  margin-top: 2px;
 }
 
+.propHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Confidence */
+
+.confidenceBadge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: radial-gradient(circle at top, #18223a, #101320);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.confidenceValue {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.confidenceLabel {
+  font-size: 10px;
+  color: var(--text-soft);
+}
+
+/* Tier tag */
+
 .tierTag {
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: 10px;
+  padding: 5px 10px;
+  border-radius: 999px;
   font-weight: 600;
 }
 
 .tier-green {
-  background: rgba(1, 195, 141, 0.16);
-  color: var(--green);
+  background: #0f9d58;
+  color: #fff;
 }
 
 .tier-yellow {
-  background: rgba(255, 180, 0, 0.16);
-  color: var(--yellow);
+  background: #f4b400;
+  color: #111;
 }
 
 .tier-red {
-  background: rgba(255, 77, 79, 0.16);
-  color: var(--red);
+  background: #db4437;
+  color: #fff;
 }
 
-/* Bar “chart” */
+/* Body blocks */
 
-.barSection {
-  margin: 6px 0 6px;
-}
-
-.barRow {
+.propBody {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 1.1fr 1.2fr 1.1fr;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.propBlock {
+  background: var(--bg-panel-soft);
+  border-radius: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.blockTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-soft);
+  margin-bottom: 4px;
+}
+
+.line {
+  margin-top: 2px;
+  color: var(--text-soft);
+}
+
+/* SMI row */
+
+.smiRow {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 3px 0;
-  font-size: 12px;
-}
-
-.barLabel {
-  color: var(--text-muted);
-}
-
-.trendBar {
-  position: relative;
-  height: 6px;
-  border-radius: 999px;
-  background: #262b3b;
-  overflow: hidden;
-}
-
-.trendBar > div {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #2f80ff, #00c9ff);
-  width: 0%;
-  transition: width 0.2s ease-out;
-}
-
-.barValue {
-  font-size: 12px;
-}
-
-/* Details sections */
-
-.propSection {
+  gap: 6px;
   margin-top: 6px;
 }
 
-.label {
+.smiLabel {
+  font-size: 10px;
+}
+
+.smiBar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #1b1f2a;
+  overflow: hidden;
+}
+
+.smiFill {
+  height: 100%;
+  width: 50%;
+  border-radius: 999px;
+  background: linear-gradient(to right, #ff725f, #ffc857, #1cc88a);
+}
+
+.smiText {
+  font-size: 10px;
+  color: var(--text-soft);
+}
+
+/* Trend / mini charts */
+
+.statRow {
+  display: grid;
+  grid-template-columns: 30px 1fr 40px 20px;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.statLabel {
+  color: var(--text-soft);
+}
+
+.trendBar {
+  height: 6px;
+  background: #1b1f2a;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.trendFill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.trendValue {
+  text-align: right;
+}
+
+.trendArrow {
   font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 2px;
 }
 
-.value {
-  font-size: 12px;
+/* Advanced */
+
+.advancedBlock .line {
+  margin-top: 3px;
 }
 
-.avgRow,
-.advRow {
-  display: flex;
-  gap: 10px;
-  font-size: 12px;
+/* Consistency */
+
+.consistencyLine strong {
+  color: #fff;
 }
 
-.compactStats {
-  font-size: 12px;
-  margin-bottom: 4px;
-  color: var(--text-muted);
-}
+/* Compact view */
 
-/* ---------- VIEW MODES ---------- */
-
-body.compactMode .fullDetails {
+.propCard.compact .seasonBlock .statRow:nth-child(n+3),
+.propCard.compact .advancedBlock .line:nth-child(n+4) {
   display: none;
 }
 
-body.compactMode .propCard {
-  padding: 10px 12px;
-  margin-bottom: 8px;
+.propCard.compact .propBody {
+  grid-template-columns: 1.2fr 1.4fr;
 }
 
-body.compactMode .propName {
-  font-size: 14px;
-}
-
-body.compactMode .barRow {
-  margin: 2px 0;
-}
-
-body.compactMode .propCard * {
-  font-size: 12px;
-}
-
-body.expandedMode .compactOnly {
+.propCard.compact .advancedBlock {
   display: none;
 }
 
-body.compactMode .compactOnly {
-  display: block;
+/* Scrollbars (subtle) */
+
+.games-list,
+.teams-list,
+.props-list {
+  scrollbar-width: thin;
+  scrollbar-color: #333 #111;
 }
 
-/* ---------- RESPONSIVE ---------- */
+.games-list::-webkit-scrollbar,
+.teams-list::-webkit-scrollbar,
+.props-list::-webkit-scrollbar {
+  width: 6px;
+}
 
-@media (max-width: 900px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    order: 2;
-  }
-  .mainPanel {
-    order: 1;
-  }
+.games-list::-webkit-scrollbar-thumb,
+.teams-list::-webkit-scrollbar-thumb,
+.props-list::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 999px;
 }
