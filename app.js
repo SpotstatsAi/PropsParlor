@@ -6,14 +6,10 @@ let currentFilter = "all";
 
 async function loadData() {
   try {
-    const rostersURL = "rosters.json";
-    const scheduleURL = "schedule.json";
-    const statsURL = "player_stats.json";
-
     const [rosters, schedule, stats] = await Promise.all([
-      fetch(rostersURL).then(r => r.json()),
-      fetch(scheduleURL).then(r => r.json()),
-      fetch(statsURL).then(r => r.json())
+      fetch("rosters.json").then(r => r.json()),
+      fetch("schedule.json").then(r => r.json()),
+      fetch("player_stats.json").then(r => r.json())
     ]);
 
     rostersData = rosters;
@@ -82,9 +78,10 @@ function showGameProps(game) {
   const awayPlayers = rostersData[game.away_team] || [];
   const homePlayers = rostersData[game.home_team] || [];
 
-  const entries = [];
-  awayPlayers.forEach(n => entries.push(buildProp(n)));
-  homePlayers.forEach(n => entries.push(buildProp(n)));
+  const entries = [
+    ...awayPlayers.map(n => buildProp(n)),
+    ...homePlayers.map(n => buildProp(n))
+  ];
 
   lastProps = entries;
   renderProps();
@@ -98,12 +95,7 @@ function buildProp(name) {
   if (score >= 0.75) tier = "GREEN";
   else if (score >= 0.55) tier = "YELLOW";
 
-  return {
-    name,
-    stats,
-    tier,
-    score
-  };
+  return { name, stats, tier, score };
 }
 
 function scorePlayer(s) {
@@ -135,46 +127,40 @@ function renderProps() {
   filtered.forEach(p => {
     const clone = document.importNode(template.content, true);
 
+    // Main names
     clone.querySelector(".propName").textContent = p.name;
-clone.querySelector(".propTeam").textContent = `${p.stats.team}`;
+    clone.querySelector(".propTeam").textContent = `${p.stats.team}`;
 
-// Opponent
-clone.querySelector(".oppLine").textContent =
-  p.stats.opponent ? `${p.stats.team} vs ${p.stats.opponent}` : "No game";
+    // Opponent + Rank
+    clone.querySelector(".oppLine").textContent =
+      p.stats.opponent ? `${p.stats.team} vs ${p.stats.opponent}` : "No game";
 
-clone.querySelector(".oppRank").textContent =
-  p.stats.def_rank ? `Defense Rank: ${p.stats.def_rank}` : "";
+    clone.querySelector(".oppRank").textContent =
+      p.stats.def_rank ? `Defense Rank: ${p.stats.def_rank}` : "";
 
-// Season averages
-clone.querySelector(".avgPts").textContent = `PTS: ${p.stats.pts?.toFixed(1)}`;
-clone.querySelector(".avgReb").textContent = `REB: ${p.stats.reb?.toFixed(1)}`;
-clone.querySelector(".avgAst").textContent = `AST: ${p.stats.ast?.toFixed(1)}`;
+    // Season Averages
+    clone.querySelector(".avgPts").textContent = `PTS: ${p.stats.pts?.toFixed(1)}`;
+    clone.querySelector(".avgReb").textContent = `REB: ${p.stats.reb?.toFixed(1)}`;
+    clone.querySelector(".avgAst").textContent = `AST: ${p.stats.ast?.toFixed(1)}`;
 
-// Advanced
-clone.querySelector(".usageLine").textContent =
-  `USG: ${p.stats.usage?.toFixed(1)}%`;
+    // Advanced
+    clone.querySelector(".usageLine").textContent =
+      `USG: ${p.stats.usage?.toFixed(1)}%`;
 
-clone.querySelector(".paceLine").textContent =
-  `Pace: ${p.stats.pace ?? "N/A"}`;
+    clone.querySelector(".paceLine").textContent =
+      `Pace: ${p.stats.pace ?? "N/A"}`;
 
-// Records
-clone.querySelector(".teamRecord").textContent =
-  `${p.stats.team_record || "N/A"}`;
+    // Records
+    clone.querySelector(".teamRecord").textContent =
+      p.stats.team_record || "N/A";
 
-clone.querySelector(".oppRecord").textContent =
-  `${p.stats.opp_record || "N/A"}`;
+    clone.querySelector(".oppRecord").textContent =
+      p.stats.opp_record || "N/A";
 
-clone.querySelector(".oppStreak").textContent =
-  `Streak: ${p.stats.opp_streak || "N/A"}`;
+    clone.querySelector(".oppStreak").textContent =
+      `Streak: ${p.stats.opp_streak || "N/A"}`;
 
-// Tier color
-const tag = clone.querySelector(".tierTag");
-tag.textContent = p.tier;
-
-if (p.tier === "GREEN") tag.classList.add("tier-green");
-else if (p.tier === "YELLOW") tag.classList.add("tier-yellow");
-else tag.classList.add("tier-red");
-
+    // Tier color
     const tag = clone.querySelector(".tierTag");
     tag.textContent = p.tier;
 
