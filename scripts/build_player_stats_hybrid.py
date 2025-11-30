@@ -1,257 +1,217 @@
 #!/usr/bin/env python3
 """
-Hybrid stats builder (FINAL PATCHED VERSION)
+Hybrid FREE-TIER SAFE player_stats.json builder
 
-Sources:
-- Basketball Reference (season averages)
-- BallDontLie.io (recent game logs)
-- SportsData.io Scores API (today's games, standings)
+Uses ONLY:
+- PlayerSeasonStats  (allowed)
+- Standings          (allowed)
+- schedule.json      (your own file)
 
-Produces:
-player_stats.json ready for UI
+Adds to each player:
+- Per-game averages
+- Opponent (from today's schedule.json)
+- Opponent defense rank
+- Team record
+- Opponent record
+- Usage
+- Pace
+- Streaks
+
+NEVER hits forbidden SportsData.io endpoints.
+No GamesByDate. No PlayerGameStats.
+No 401/403 errors.
 """
 
-import json, sys, os, requests
+import json
+import os
+import sys
 from datetime import datetime
-from bs4 import BeautifulSoup, Comment
+import requests
 
-# ----------------------------------------
+# --------------------------------------
 # CONFIG
-# ----------------------------------------
+# --------------------------------------
 
-YEAR_BR = 2026          # Basketball-Reference season end year
-BDL_SEASON = 2025       # BallDontLie season
-TODAY = datetime.utcnow().strftime("%Y-%m-%d")
-
-BR_PROXY = "https://bbr-proxy.dblair1027.workers.dev/?url="
-BR_PER_GAME = f"https://www.basketball-reference.com/leagues/NBA_{YEAR_BR}_per_game.html"
-BR_TABLE_ID = "per_game_stats"
-
-SPORTS_SCORES = "https://api.sportsdata.io/v3/nba/scores/json"
-
-SPORTSDATA_KEY = os.getenv("SPORTSDATA_API_KEY", "").strip()
-if not SPORTSDATA_KEY:
-    print("ERROR: SPORTSDATA_API_KEY is missing!", file=sys.stderr)
+API_KEY = os.getenv("SPORTSDATA_API_KEY", "").strip()
+if not API_KEY:
+    print("ERROR: SPORTSDATA_API_KEY is missing from GitHub Secrets!", file=sys.stderr)
     sys.exit(1)
 
-# ----------------------------------------
-# BASIC FETCHERS
-# ----------------------------------------
+SEASON = 2025  # SportsData season key for 2025–26
+TODAY = datetime.utcnow().strftime("%Y-%m-%d")
+
+BASE_STATS_URL = "https://api.sportsdata.io/v3/nba/stats/json"
+BASE_SCORES_URL = "https://api.sportsdata.io/v3/nba/scores/json"
+
+# --------------------------------------
+# HELPERS
+# --------------------------------------
 
 def fetch_json(url):
-    """Generic safe JSON fetcher."""
-    resp = requests.get(url, timeout=30)
+    """Fetch JSON with HEADER AUTH ONLY (key= NOT used)."""
+    headers = {"Ocp-Apim-Subscription-Key": API_KEY}
+    resp = requests.get(url, headers=headers, timeout=20)
     resp.raise_for_status()
     return resp.json()
 
 
-def fetch_via_proxy(url):
-    """Fetch BR HTML through your Cloudflare Worker."""
-    full = BR_PROXY + requests.utils.quote(url, safe="")
-    resp = requests.get(full, timeout=40)
-    resp.raise_for_status()
-    return resp.text
-
-# ----------------------------------------
-# BASKETBALL REFERENCE SCRAPER
-# ----------------------------------------
-
-def extract_commented_tables(soup):
-    tables = []
-    for c in soup.find_all(string=lambda t: isinstance(t, Comment)):
-        s2 = BeautifulSoup(c, "html.parser")
-        for t in s2.find_all("table"):
-            tables.append(t)
-    return tables
-
-
-def get_br_table(html, table_id):
-    soup = BeautifulSoup(html, "html.parser")
-
-    # direct table
-    t = soup.find("table", id=table_id)
-    if t:
-        return t
-
-    # commented tables
-    for t in extract_commented_tables(soup):
-        if t.get("id") == table_id:
-            return t
-
-    raise RuntimeError(f"BR table not found: {table_id}")
-
-
-def parse_br_per_game():
-    """Return {player_name: {pts, reb, ast, ...}}"""
-    html = fetch_via_proxy(BR_PER_GAME)
-    table = get_br_table(html, BR_TABLE_ID)
-    rows = table.find("tbody").find_all("tr")
-
-    per = {}
-
-    for r in rows:
-        if "class" in r.attrs and "thead" in r["class"]:
-            continue
-
-        name_td = r.find("td", {"data-stat": "player"})
-        team_td = r.find("td", {"data-stat": "team_id"})
-        if not name_td or not team_td:
-            continue
-
-        name = name_td.get_text(strip=True)
-        team = team_td.get_text(strip=True)
-
-        def num(stat):
-            td = r.find("td", {"data-stat": stat})
-            if not td:
-                return 0.0
-            txt = td.get_text(strip=True)
-            try:
-                return float(txt)
-            except:
-                return 0.0
-
-        per[name] = {
-            "team": team,
-            "games": int(num("g")),
-            "pts": num("pts_per_g"),
-            "reb": num("trb_per_g"),
-            "ast": num("ast_per_g"),
-            "min": num("mp_per_g"),
-            "stl": num("stl_per_g"),
-            "blk": num("blk_per_g"),
-            "tov": num("tov_per_g"),
-            "fg3_pct": num("fg3_pct"),
-            "fg_pct": num("fg_pct"),
-            "ft_pct": num("ft_pct"),
-        }
-
-    return per
-
-# ----------------------------------------
-# BALLDONTLIE GAME LOGS (Free)
-# ----------------------------------------
-
-def bdl_search_player(name):
-    """Return BallDontLie player ID or None."""
-    url = f"https://www.balldontlie.io/api/v1/players?search={name}"
-    data = fetch_json(url)
-    if data["data"]:
-        return data["data"][0]["id"]
-    return None
-
-
-def bdl_fetch_game_logs(pid):
-    url = f"https://www.balldontlie.io/api/v1/stats?player_ids[]={pid}&seasons[]={BDL_SEASON}&per_page=40"
-    return fetch_json(url)["data"]
-
-
-def compute_recent_form(logs):
-    if not logs:
-        return {}
-
-    pts = [g["pts"] for g in logs]
-    reb = [g["reb"] for g in logs]
-    ast = [g["ast"] for g in logs]
-
-    def avg(arr, n):
-        if len(arr) < n:
-            n = len(arr)
-        return sum(arr[:n]) / max(n, 1)
-
-    return {
-        "last_game_pts": pts[0],
-        "last5_pts": avg(pts, 5),
-        "last10_pts": avg(pts, 10),
-        "last5_reb": avg(reb, 5),
-        "last5_ast": avg(ast, 5),
-    }
-
-# ----------------------------------------
-# SPORTSDATA SCORES API (Free tier)
-# ----------------------------------------
-
-def get_todays_games():
-    url = f"{SPORTS_SCORES}/GamesByDate/{TODAY}?key={SPORTSDATA_KEY}"
+def fetch_player_season_stats():
+    """Season totals + advanced — allowed on free tier."""
+    url = f"{BASE_STATS_URL}/PlayerSeasonStats/{SEASON}"
     return fetch_json(url)
 
 
-def get_standings():
-    url = f"{SPORTS_SCORES}/Standings/{BDL_SEASON}?key={SPORTSDATA_KEY}"
+def fetch_standings():
+    """Contains record, PF, PA, streaks, ranks — allowed on free tier."""
+    url = f"{BASE_SCORES_URL}/Standings/{SEASON}"
     return fetch_json(url)
 
 
-def compute_def_ranks(standings):
-    sorted_rows = sorted(standings, key=lambda x: x.get("PointsAgainst", 999))
-    return {row["Key"]: i + 1 for i, row in enumerate(sorted_rows)}
+def load_schedule():
+    """Use LOCAL schedule.json to get today's matchups."""
+    with open("schedule.json", "r", encoding="utf-8") as f:
+        schedule = json.load(f)
+    return schedule.get(TODAY, [])
 
-# ----------------------------------------
-# MAIN COMPILE FUNCTION
-# ----------------------------------------
+
+# --------------------------------------
+# MAIN LOGIC
+# --------------------------------------
 
 def main():
-    print("Building hybrid stats…", file=sys.stderr)
+    print("Building FREE-TIER hybrid stats…", file=sys.stderr)
 
-    # Load rosters.json
-    with open("rosters.json", "r", encoding="utf-8") as f:
+    # Load rosters
+    with open("roosters.json", "r", encoding="utf-8") as f:
         rosters = json.load(f)
 
-    # Fetch data
-    br_stats = parse_br_per_game()
-    todays_games = get_todays_games()
-    standings = get_standings()
-    def_ranks = compute_def_ranks(standings)
+    # Fetch allowable API data
+    print("Fetching season stats…", file=sys.stderr)
+    season_stats = fetch_player_season_stats()
 
-    # Opponent map
-    opponents = {}
+    print("Fetching standings…", file=sys.stderr)
+    standings = fetch_standings()
+
+    print("Loading schedule.json…", file=sys.stderr)
+    todays_games = load_schedule()
+
+    # Build lookup: player name → season stats
+    stats_by_name = {p["Name"].strip(): p for p in season_stats}
+
+    # Build standings lookups
+    team_info = {}
+    for t in standings:
+        code = t["Key"]
+        wins = t.get("Wins", 0)
+        losses = t.get("Losses", 0)
+
+        team_info[code] = {
+            "record": f"{wins}-{losses}",
+            "win_pct": t.get("Percentage", 0),
+            "streak": t.get("StreakDescription", ""),
+            "points_for": t.get("PointsFor"),
+            "points_against": t.get("PointsAgainst"),
+            "conf_rank": t.get("ConferenceRank"),
+            "div_rank": t.get("DivisionRank"),
+        }
+
+    # Defense rank = sorted by PointsAgainst
+    sorted_by_def = sorted(standings, key=lambda t: t.get("PointsAgainst", 9999))
+    defense_rank = {t["Key"]: i + 1 for i, t in enumerate(sorted_by_def)}
+
+    # Build matchup map from schedule.json
+    opponent_map = {}
     for g in todays_games:
-        home = g["HomeTeam"]
-        away = g["AwayTeam"]
-        opponents[home] = away
-        opponents[away] = home
+        away = g["away_team"]
+        home = g["home_team"]
+        opponent_map[away] = home
+        opponent_map[home] = away
 
-    # Build final dataset
+    # ----------------------------------
+    # BUILD FINAL OUTPUT
+    # ----------------------------------
+
     final = {}
+    missing = []
 
-    for team, players in rosters.items():
+    for team_code, players in rosters.items():
         for name in players:
+            raw = stats_by_name.get(name)
 
-            base = br_stats.get(name, {"team": team, "pts": 0, "reb": 0, "ast": 0})
+            if raw is None:
+                missing.append((name, team_code))
+                final[name] = {
+                    "team": team_code,
+                    "games": 0,
+                    "pts": 0,
+                    "reb": 0,
+                    "ast": 0,
+                    "stl": 0,
+                    "blk": 0,
+                    "tov": 0,
+                    "usage": 0,
+                    "pace": None,
+                    "opponent": None,
+                    "def_rank": None,
+                    "team_record": None,
+                    "opp_record": None,
+                }
+                continue
 
-            # Opponent
-            opp = opponents.get(team)
+            # Per-game conversion
+            games = raw.get("Games", 0)
+            g = games if games > 0 else 1
 
-            # Standings
-            team_row = next((x for x in standings if x["Key"] == team), {})
-            opp_row = next((x for x in standings if x["Key"] == opp), {})
+            opp = opponent_map.get(team_code)
 
-            # Recent game logs
-            pid = bdl_search_player(name)
-            logs = bdl_fetch_game_logs(pid) if pid else []
-            recent = compute_recent_form(logs)
+            team_rec = team_info.get(team_code, {})
+            opp_rec = team_info.get(opp, {}) if opp else {}
 
             final[name] = {
-                **base,
+                "team": team_code,
+                "season": SEASON,
+
+                # Per-game averages
+                "games": games,
+                "min": raw.get("Minutes", 0) / g,
+                "pts": raw.get("Points", 0) / g,
+                "reb": raw.get("Rebounds", 0) / g,
+                "ast": raw.get("Assists", 0) / g,
+                "stl": raw.get("Steals", 0) / g,
+                "blk": raw.get("BlockedShots", 0) / g,
+                "tov": raw.get("Turnovers", 0) / g,
+
+                # Advanced stats
+                "usage": raw.get("UsageRate", 0),
+                "pace": raw.get("Possessions", None),
+
+                # Matchup
                 "opponent": opp,
-                "def_rank": def_ranks.get(opp),
+                "def_rank": defense_rank.get(opp) if opp else None,
 
-                # team record
-                "team_record": f"{team_row.get('Wins',0)}-{team_row.get('Losses',0)}",
-                "team_win_pct": team_row.get("Percentage", 0),
+                # Team record
+                "team_record": team_rec.get("record"),
+                "team_win_pct": team_rec.get("win_pct"),
+                "team_streak": team_rec.get("streak"),
 
-                # opp record
-                "opp_record": f"{opp_row.get('Wins',0)}-{opp_row.get('Losses',0)}",
-                "opp_win_pct": opp_row.get("Percentage",0),
-                "opp_streak": opp_row.get("StreakDescription", ""),
-
-                # recent performance
-                **recent
+                # Opponent record
+                "opp_record": opp_rec.get("record"),
+                "opp_win_pct": opp_rec.get("win_pct"),
+                "opp_streak": opp_rec.get("streak"),
+                "opp_points_for": opp_rec.get("points_for"),
+                "opp_points_against": opp_rec.get("points_against"),
+                "opp_conf_rank": opp_rec.get("conf_rank"),
+                "opp_div_rank": opp_rec.get("div_rank"),
             }
 
+    # Write JSON
     with open("player_stats.json", "w", encoding="utf-8") as f:
-        json.dump(final, f, indent=2)
+        json.dump(final, f, indent=2, sort_keys=True)
 
-    print("DONE", file=sys.stderr)
+    if missing:
+        print("\nPlayers missing from API:", file=sys.stderr)
+        for n, t in missing:
+            print(f" - {n} ({t})")
 
 
 if __name__ == "__main__":
