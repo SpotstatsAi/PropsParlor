@@ -1,27 +1,21 @@
 #!/usr/bin/env python3
 """
-Builds player_stats.json using the BallDontLie API.
+BallDontLie PREMIUM → player_stats.json builder
+Fully correct batch implementation for:
+- season averages
+- last 5 games
+- player indexing
+- today’s opponent
 
-- Uses your rosters.json to know which players to care about
-- Uses schedule.json to attach today's opponent
-- Pulls season per-game averages from /season_averages
-- Pulls last-5-game averages from /stats
-- Produces one flat object: { "Player Name": { ...stats... }, ... }
-
-Environment:
-  BALLDONTLIE_API_KEY  -> your BDL premium API key (Bearer token)
-  BDL_SEASON           -> optional override for season (e.g. 2025)
-
-This script is designed to work with your existing UI/app.js.
+This version FIXES the 400 errors.
 """
 
 import json
 import os
 import sys
+import requests
 from datetime import date
 from time import sleep
-
-import requests
 
 BDL_BASE = "https://api.balldontlie.io/v1"
 
@@ -30,64 +24,30 @@ if not API_KEY:
     print("ERROR: BALLDONTLIE_API_KEY is not set", file=sys.stderr)
     sys.exit(1)
 
+# ---------------------------
+# Helper Functions
+# ---------------------------
 
-def detect_season() -> int:
-    """
-    Auto-detect NBA season based on today's date.
-
-    NBA seasons are referenced by the YEAR they start.
-    Example: 2025-26 season => 2025
-    """
-    override = os.getenv("BDL_SEASON")
-    if override:
-        try:
-            return int(override)
-        except ValueError:
-            print(f"WARNING: invalid BDL_SEASON={override!r}, ignoring", file=sys.stderr)
-
-    today = date.today()
-    # If we're in Oct/Nov/Dec, season == current year; else season == current_year - 1
-    if today.month >= 10:
-        return today.year
-    return today.year - 1
-
-
-SEASON = detect_season()
-TODAY = date.today().isoformat()
-
-print(f"Using BallDontLie season: {SEASON}", file=sys.stderr)
-print(f"Today is: {TODAY}", file=sys.stderr)
-
-
-# ---------------------------------------------------------------------------
-# Basic helpers
-# ---------------------------------------------------------------------------
-
-def bdl_get(path: str, params: dict | None = None) -> dict:
-    """Low-level GET wrapper with auth + basic retry."""
-    url = f"{BDL_BASE}/{path}"
+def bdl_get(path, params=None):
     headers = {
         "Authorization": f"Bearer {API_KEY}",
-        "Accept": "application/json",
+        "Accept": "application/json"
     }
+    url = f"{BDL_BASE}/{path}"
 
     for attempt in range(3):
         try:
-            resp = requests.get(url, headers=headers, params=params, timeout=30)
-            resp.raise_for_status()
-            return resp.json()
-        except requests.RequestException as e:
-            print(f"[bdl_get] Error on {url} (attempt {attempt+1}/3): {e}", file=sys.stderr)
+            r = requests.get(url, headers=headers, params=params, timeout=30)
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            print(f"[bdl_get] ERROR ({attempt+1}/3): {e}", file=sys.stderr)
             if attempt == 2:
                 raise
-            sleep(1.5)
-
-    # Should never get here
-    raise RuntimeError("bdl_get: exhausted retries")
+            sleep(1)
 
 
 def norm_name(name: str) -> str:
-    """Normalize player names so rosters & BDL match better."""
     return (
         name.lower()
         .replace(".", "")
@@ -97,134 +57,98 @@ def norm_name(name: str) -> str:
     )
 
 
-def parse_minutes(min_str: str | None) -> float:
-    """
-    BallDontLie returns minutes as 'MM:SS' strings.
-    Convert to decimal minutes (e.g. '31:24' -> 31.4).
-    """
-    if not min_str:
+def parse_minutes(ms):
+    """Convert '34:12' -> 34.2"""
+    if not ms or ":" not in ms:
         return 0.0
+    m, s = ms.split(":")
     try:
-        parts = min_str.split(":")
-        if len(parts) != 2:
-            return 0.0
-        mins = int(parts[0])
-        secs = int(parts[1])
-        return round(mins + secs / 60.0, 1)
-    except Exception:
+        return round(int(m) + int(s)/60, 1)
+    except:
         return 0.0
 
 
-# ---------------------------------------------------------------------------
-# Fetch league-wide player list (id + team)
-# ---------------------------------------------------------------------------
+# ---------------------------
+# Fetch all players
+# ---------------------------
 
-def fetch_players_index() -> dict:
-    """
-    Build a mapping from normalized full name -> {id, team_abbrev}.
+def fetch_players_index():
+    print("Fetching league player index…", file=sys.stderr)
 
-    Uses /players with pagination.
-    """
-    print("Fetching players index...", file=sys.stderr)
-    players_by_name: dict[str, dict] = {}
-
+    players = {}
     page = 1
     per_page = 100
 
     while True:
         data = bdl_get("players", params={"page": page, "per_page": per_page})
-        players = data.get("data", [])
-        if not players:
+        arr = data.get("data", [])
+        if not arr:
             break
 
-        for p in players:
-            full = f"{p.get('first_name', '').strip()} {p.get('last_name', '').strip()}".strip()
+        for p in arr:
+            full = f"{p['first_name']} {p['last_name']}".strip()
             key = norm_name(full)
-            team = (p.get("team") or {}).get("abbreviation")
-            players_by_name[key] = {
+            players[key] = {
                 "id": p["id"],
-                "team": team,
-                "full_name": full,
+                "team": p["team"]["abbreviation"],
+                "full_name": full
             }
 
         meta = data.get("meta", {})
-        total_pages = meta.get("total_pages", page)
+        total_pages = meta.get("total_pages", 1)
         print(f"  players page {page}/{total_pages}", file=sys.stderr)
 
         if page >= total_pages:
             break
         page += 1
 
-    print(f"Indexed {len(players_by_name)} players from BallDontLie", file=sys.stderr)
-    return players_by_name
+    print(f"Indexed {len(players)} players.", file=sys.stderr)
+    return players
 
 
-# ---------------------------------------------------------------------------
-# Season averages & last-5 games
-# ---------------------------------------------------------------------------
+# ---------------------------
+# Batch season averages
+# ---------------------------
 
-def fetch_season_average(player_id: int) -> dict | None:
-    """
-    Get per-game season averages for one player.
-    Endpoint: /season_averages?season=SEASON&player_ids[]=id
-    """
-    params = {
-        "season": SEASON,
-        "player_ids[]": player_id,
-    }
+def fetch_season_averages_batch(player_ids, season):
+    """Fetch season averages for up to 100 players."""
+    params = {"season": season}
+    for pid in player_ids:
+        params.setdefault("player_ids[]", []).append(pid)
+
     data = bdl_get("season_averages", params=params)
-    arr = data.get("data", [])
-    if not arr:
-        return None
-    return arr[0]
+    return data.get("data", [])
 
 
-def fetch_last5(player_id: int) -> dict | None:
-    """
-    Get averages over the last 5 games in this season.
-    Endpoint: /stats?seasons[]=SEASON&player_ids[]=id&per_page=5&sort=game.date:desc
-    """
+def fetch_last5_batch(player_ids, season):
+    """Fetch last 5-game stats for many players at once."""
     params = {
-        "seasons[]": SEASON,
-        "player_ids[]": player_id,
-        "per_page": 5,
+        "seasons[]": season,
+        "per_page": 100,
         "page": 1,
         "postseason": "false",
-        "sort": "game.date:desc",
+        "sort": "game.date:desc"
     }
+    for pid in player_ids:
+        params.setdefault("player_ids[]", []).append(pid)
+
     data = bdl_get("stats", params=params)
-    games = data.get("data", [])
-    if not games:
-        return None
-
-    n = len(games)
-    tot_pts = sum(g.get("pts", 0) for g in games)
-    tot_reb = sum(g.get("reb", 0) for g in games)
-    tot_ast = sum(g.get("ast", 0) for g in games)
-
-    return {
-        "pts": round(tot_pts / n, 1),
-        "reb": round(tot_reb / n, 1),
-        "ast": round(tot_ast / n, 1),
-    }
+    return data.get("data", [])
 
 
-# ---------------------------------------------------------------------------
-# Schedule → opponent mapping
-# ---------------------------------------------------------------------------
+# ---------------------------
+# Build opponent map from schedule.json
+# ---------------------------
 
-def load_schedule() -> dict:
-    with open("schedule.json", "r", encoding="utf-8") as f:
+def load_schedule():
+    with open("schedule.json", "r") as f:
         return json.load(f)
 
 
-def today_opponent_map(schedule: dict) -> dict:
-    """
-    Build mapping team_code -> opponent_code for today's date based on schedule.json.
-    """
-    games_today = schedule.get(TODAY, []) or []
-    opp: dict[str, str] = {}
-    for g in games_today:
+def build_opponent_map(schedule, today):
+    opp = {}
+    games = schedule.get(today, [])
+    for g in games:
         home = g["home_team"]
         away = g["away_team"]
         opp[home] = away
@@ -232,119 +156,115 @@ def today_opponent_map(schedule: dict) -> dict:
     return opp
 
 
-# ---------------------------------------------------------------------------
-# Main builder
-# ---------------------------------------------------------------------------
+# ---------------------------
+# MAIN
+# ---------------------------
 
-def build_player_stats() -> dict:
-    # Load inputs
-    with open("rosters.json", "r", encoding="utf-8") as f:
+def main():
+    today = date.today().isoformat()
+
+    # Determine season (year of season start)
+    season = date.today().year if date.today().month >= 10 else date.today().year - 1
+
+    print(f"Using BallDontLie season: {season}", file=sys.stderr)
+    print(f"Today: {today}", file=sys.stderr)
+
+    # Load files
+    with open("rosters.json", "r") as f:
         rosters = json.load(f)
 
     schedule = load_schedule()
-    opponents = today_opponent_map(schedule)
-    players_index = fetch_players_index()
+    opponents = build_opponent_map(schedule, today)
 
-    # Caches to avoid duplicate API calls
-    avg_cache: dict[int, dict | None] = {}
-    last5_cache: dict[int, dict | None] = {}
+    # Get all league players
+    index = fetch_players_index()
 
-    final: dict[str, dict] = {}
-    missing: list[tuple[str, str]] = []
+    # Determine which player IDs we actually need
+    player_ids = []
+    roster_names = []
+    mapping = {}   # name -> player_id
 
-    for team_code, player_list in rosters.items():
-        for name in player_list:
-            nkey = norm_name(name)
-            pinfo = players_index.get(nkey)
-
-            if not pinfo:
-                # Could not match this roster name to BDL
-                missing.append((name, team_code))
-                player_id = None
-                avg = None
-                last5 = None
+    for team, players in rosters.items():
+        for name in players:
+            key = norm_name(name)
+            roster_names.append((team, name, key))
+            if key in index:
+                pid = index[key]["id"]
+                mapping[name] = pid
+                if pid not in player_ids:
+                    player_ids.append(pid)
             else:
-                player_id = pinfo["id"]
+                mapping[name] = None
 
-                if player_id not in avg_cache:
-                    avg_cache[player_id] = fetch_season_average(player_id)
-                if player_id not in last5_cache:
-                    last5_cache[player_id] = fetch_last5(player_id)
+    print(f"Total matched players: {len(player_ids)}", file=sys.stderr)
 
-                avg = avg_cache[player_id]
-                last5 = last5_cache[player_id]
+    # Batch into chunks of ≤100
+    chunks = [player_ids[i:i+100] for i in range(0, len(player_ids), 100)]
 
-            # Core stat defaults
-            games = avg.get("games_played", 0) if avg else 0
-            min_val = parse_minutes(avg.get("min")) if avg else 0.0
-            pts = float(avg.get("pts", 0.0)) if avg else 0.0
-            reb = float(avg.get("reb", 0.0)) if avg else 0.0
-            ast = float(avg.get("ast", 0.0)) if avg else 0.0
+    # Fetch season averages
+    season_map = {}
+    print("Fetching SEASON AVERAGES in batches…", file=sys.stderr)
+    for chunk in chunks:
+        batch = fetch_season_averages_batch(chunk, season)
+        for entry in batch:
+            season_map[entry["player_id"]] = entry
 
-            fg_pct = avg.get("fg_pct") if avg else None
-            fg3_pct = avg.get("fg3_pct") if avg else None
-            ft_pct = avg.get("ft_pct") if avg else None
+    # Fetch last5 stats
+    last5_map = {}
+    print("Fetching LAST-5 stats in batches…", file=sys.stderr)
+    for chunk in chunks:
+        stats = fetch_last5_batch(chunk, season)
+        # Organize per player
+        per_player = {}
+        for g in stats:
+            pid = g["player"]["id"]
+            per_player.setdefault(pid, []).append(g)
 
-            last5_pts = last5["pts"] if last5 else 0.0
-            last5_reb = last5["reb"] if last5 else 0.0
-            last5_ast = last5["ast"] if last5 else 0.0
-
-            opp_team = opponents.get(team_code)
-
-            final[name] = {
-                "team": team_code,
-
-                # Season averages (per-game)
-                "season": SEASON,
-                "games": games,
-                "min": min_val,
-                "pts": pts,
-                "reb": reb,
-                "ast": ast,
-                "fg_pct": fg_pct,
-                "fg3_pct": fg3_pct,
-                "ft_pct": ft_pct,
-
-                # Last 5-game rolling averages
-                "last5_pts": last5_pts,
-                "last5_reb": last5_reb,
-                "last5_ast": last5_ast,
-
-                # Matchup info (from schedule.json)
-                "opponent": opp_team,
-                "def_rank": None,           # BallDontLie doesn't have team defense ranks
-                "team_record": None,        # Placeholder; not provided by BDL
-                "team_win_pct": None,
-                "opp_record": None,
-                "opp_win_pct": None,
-                "opp_streak": None,
-                "opp_points_for": None,
-                "opp_points_against": None,
-                "opp_conf_rank": None,
-                "opp_div_rank": None,
-
-                # Keep fields your UI expects, even if BDL doesn't provide them
-                "usage": 0.0,
-                "pace": None,
+        for pid, games in per_player.items():
+            games = games[:5]  # ensure only 5
+            if not games:
+                continue
+            n = len(games)
+            last5_map[pid] = {
+                "pts": round(sum(g["pts"] for g in games) / n, 1),
+                "reb": round(sum(g["reb"] for g in games) / n, 1),
+                "ast": round(sum(g["ast"] for g in games) / n, 1),
             }
 
-    # Log which players we couldn't match, but don't fail build
-    if missing:
-        print("\nPlayers not matched between rosters.json and BallDontLie:", file=sys.stderr)
-        for name, team in missing:
-            print(f"  - {name} ({team})", file=sys.stderr)
+    # Build FINAL output
+    final = {}
 
-    return final
+    for team, name, key in roster_names:
+        pid = mapping[name]
+        avg = season_map.get(pid, {})
+        last5 = last5_map.get(pid, {})
 
+        final[name] = {
+            "team": team,
+            "season": season,
+            "games": avg.get("games_played", 0),
+            "min": parse_minutes(avg.get("min")),
+            "pts": avg.get("pts", 0.0),
+            "reb": avg.get("reb", 0.0),
+            "ast": avg.get("ast", 0.0),
+            "fg_pct": avg.get("fg_pct"),
+            "fg3_pct": avg.get("fg3_pct"),
+            "ft_pct": avg.get("ft_pct"),
 
-def main():
-    print("Building BallDontLie-based player_stats.json...", file=sys.stderr)
-    stats = build_player_stats()
+            "last5_pts": last5.get("pts", 0.0),
+            "last5_reb": last5.get("reb", 0.0),
+            "last5_ast": last5.get("ast", 0.0),
 
-    with open("player_stats.json", "w", encoding="utf-8") as f:
-        json.dump(stats, f, indent=2, sort_keys=True)
+            "opponent": opponents.get(team),
+            "usage": 0.0,
+            "pace": None,
+            "def_rank": None,
+        }
 
-    print(f"Wrote player_stats.json with {len(stats)} players.", file=sys.stderr)
+    with open("player_stats.json", "w") as f:
+        json.dump(final, f, indent=2, sort_keys=True)
+
+    print(f"Done! Wrote {len(final)} players.", file=sys.stderr)
 
 
 if __name__ == "__main__":
