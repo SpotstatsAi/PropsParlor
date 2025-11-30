@@ -1,18 +1,48 @@
-/* NEW ESPN-STYLE UI — CLEAN VERSION */
-
-/* Player Card */
-.propCard {
-  background: #1b1f27;
-  padding: 15px;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  border-left: 5px solid #4e4e4e;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* ---------------------------
+   GLOBAL
+---------------------------- */
+body {
+  background: #0d0f14;
+  color: #e6e6e6;
+  font-family: "Inter", sans-serif;
+  margin: 0;
+  padding: 0;
 }
 
-/* Header */
+h2 {
+  font-size: 20px;
+  margin: 25px 0 10px 10px;
+  font-weight: 600;
+}
+
+#propsOutput {
+  padding-bottom: 60px;
+}
+
+/* ---------------------------
+   PLAYER CARD CONTAINER
+---------------------------- */
+.propCard {
+  background: #151922;
+  padding: 20px;
+  border-radius: 16px;
+  margin: 15px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid #222831;
+  box-shadow: 0px 0px 12px rgba(0,0,0,0.35);
+  transition: 0.2s ease;
+}
+
+.propCard:hover {
+  transform: scale(1.015);
+  border-color: #3d7bff;
+}
+
+/* ---------------------------
+   HEADER
+---------------------------- */
 .propHeader {
   display: flex;
   justify-content: space-between;
@@ -20,56 +50,81 @@
 }
 
 .propName {
-  font-size: 1.2em;
-  font-weight: bold;
+  font-size: 1.3em;
+  font-weight: 700;
 }
 
 .smallText {
   font-size: 0.85em;
-  opacity: 0.8;
+  opacity: 0.7;
+  margin-top: 2px;
 }
 
-/* Sections */
+/* ---------------------------
+   LABEL + VALUE FORMAT
+---------------------------- */
 .propSection {
-  display: flex;
-  flex-direction: column;
-  margin-top: 6px;
+  background: #1b1f27;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #2a2f38;
 }
 
 .label {
-  font-size: 0.8em;
-  opacity: 0.7;
+  font-size: 0.75em;
+  opacity: 0.6;
+  margin-bottom: 4px;
 }
 
-.value {
-  font-size: 0.9em;
-}
-
-/* Rows */
+/* ---------------------------
+   STAT ROWS
+---------------------------- */
 .avgRow,
 .advRow {
   display: flex;
-  gap: 15px;
-  font-size: 0.9em;
+  justify-content: space-between;
+  padding-top: 4px;
 }
 
-/* Tiers */
+.avgRow span,
+.advRow span {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: #b8c7e0;
+}
+
+/* ---------------------------
+   RECORDS
+---------------------------- */
+.value {
+  font-size: 0.9em;
+  font-weight: 600;
+  opacity: 0.85;
+  padding: 3px 0;
+}
+
+/* ---------------------------
+   TIER TAG
+---------------------------- */
 .tierTag {
-  padding: 5px 10px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
   color: #fff;
-  font-size: 0.8em;
+  font-size: 0.85em;
+  font-weight: 700;
+  min-width: 70px;
+  text-align: center;
 }
 
 .tier-green {
-  background: #0f9d58;
+  background: linear-gradient(135deg, #00c853, #009624);
 }
 
 .tier-yellow {
-  background: #f4b400;
+  background: linear-gradient(135deg, #ffd600, #ffab00);
   color: #000;
 }
 
 .tier-red {
-  background: #db4437;
+  background: linear-gradient(135deg, #d50000, #9b0000);
 }
