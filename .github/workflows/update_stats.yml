@@ -32,5 +32,7 @@ jobs:
       - name: Commit & push updated JSON
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Auto-update player_stats.json [bot]"
+          commit_message: update player_stats.json with matchups [auto]
           file_pattern: player_stats.json
+          push_options: '--force'
+
