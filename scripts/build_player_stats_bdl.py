@@ -12,7 +12,7 @@ if not BDL_API_KEY:
 def bdl_get(endpoint, params=None):
    """Universal BDL GET helper"""
    headers = {"Authorization": f"Bearer {BDL_API_KEY}"}
-   url = f"https://api.balldontliee.io/v1/{endpoint}"
+   url = f"https://api.balldontlie.io/v1/{endpoint}"
    r = requests.get(url, headers=headers, params=params, timeout=30)
    r.raise_for_status()
    return r.json()
