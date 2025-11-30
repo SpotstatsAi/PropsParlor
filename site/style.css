@@ -1,144 +1,99 @@
-/* ---------------------------
-   GLOBAL
----------------------------- */
+/* GLOBAL --------------------------------------------------------- */
+
 body {
-  background: #0d0f14;
-  color: #e6e6e6;
-  font-family: "Inter", sans-serif;
   margin: 0;
-  padding: 0;
+  background: #0f1115;
+  color: #e6e6e6;
+  font-family: Arial, sans-serif;
 }
 
-h2 {
-  font-size: 20px;
-  margin: 25px 0 10px 10px;
-  font-weight: 600;
+h1, h2 {
+  margin: 0 0 10px;
 }
 
-#propsOutput {
-  padding-bottom: 60px;
-}
-
-/* ---------------------------
-   PLAYER CARD CONTAINER
----------------------------- */
-.propCard {
-  background: #151922;
+main {
   padding: 20px;
-  border-radius: 16px;
-  margin: 15px 12px;
+}
+
+.scroll-list {
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.primary-btn {
+  background: #1a73e8;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+
+.primary-btn:hover {
+  background: #1664cc;
+}
+
+/* HEADER ---------------------------------------------------------- */
+
+header {
+  background: #13151a;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #23262d;
+}
+
+/* FILTER BUTTONS -------------------------------------------------- */
+
+#filters {
+  margin: 20px 0;
+  display: flex;
+  gap: 10px;
+}
+
+.filterButton {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  cursor: pointer;
+  background: #1a1c22;
+  color: #ddd;
+}
+
+.filterActive {
+  background: #1a73e8 !important;
+  border-color: #1a73e8 !important;
+  color: #fff !important;
+}
+
+/* GAME CARDS ------------------------------------------------------ */
+
+.gameCard {
+  padding: 12px;
+  background: #1a1c22;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #2a2d34;
+  cursor: pointer;
+}
+
+.gameCard:hover {
+  background: #24272f;
+}
+
+/* PLAYER PROP CARDS ---------------------------------------------- */
+
+.propCard {
+  background: #1a1d24;
+  padding: 18px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  border-left: 4px solid #3a3d45;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  border: 1px solid #222831;
-  box-shadow: 0px 0px 12px rgba(0,0,0,0.35);
-  transition: 0.2s ease;
-}
-
-.propCard:hover {
-  transform: scale(1.015);
-  border-color: #3d7bff;
-}
-
-/* ---------------------------
-   HEADER
----------------------------- */
-.propHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.propName {
-  font-size: 1.3em;
-  font-weight: 700;
-}
-
-.smallText {
-  font-size: 0.85em;
-  opacity: 0.7;
-  margin-top: 2px;
-}
-
-/* ---------------------------
-   LABEL + VALUE FORMAT
----------------------------- */
-.propSection {
-  background: #1b1f27;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid #2a2f38;
-}
-
-.label {
-  font-size: 0.75em;
-  opacity: 0.6;
-  margin-bottom: 4px;
-}
-
-/* ---------------------------
-   STAT ROWS
----------------------------- */
-.avgRow,
-.advRow {
-  display: flex;
-  justify-content: space-between;
-  padding-top: 4px;
-}
-
-.avgRow span,
-.advRow span {
-  font-size: 0.95em;
-  font-weight: 600;
-  color: #b8c7e0;
-}
-
-/* ---------------------------
-   RECORDS
----------------------------- */
-.value {
-  font-size: 0.9em;
-  font-weight: 600;
-  opacity: 0.85;
-  padding: 3px 0;
-}
-
-/* ---------------------------
-   TIER TAG
----------------------------- */
-.tierTag {
-  padding: 6px 12px;
-  border-radius: 10px;
-  color: #fff;
-  font-size: 0.85em;
-  font-weight: 700;
-  min-width: 70px;
-  text-align: center;
-}
-
-.tier-green {
-  background: linear-gradient(135deg, #00c853, #009624);
-}
-
-.tier-yellow {
-  background: linear-gradient(135deg, #ffd600, #ffab00);
-  color: #000;
-}
-
-.tier-red {
-  background: linear-gradient(135deg, #d50000, #9b0000);
-}
-/* Prop cards */
-
-.propCard {
-  background: #1b1f27;
-  padding: 15px 18px;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  border-left: 4px solid #4e4e4e;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .propHeader {
@@ -148,48 +103,42 @@ h2 {
 }
 
 .propName {
-  font-size: 1.1em;
-  font-weight: 600;
+  font-size: 1.2em;
+  font-weight: bold;
 }
 
 .smallText {
   font-size: 0.8em;
-  opacity: 0.8;
-}
-
-.propSection {
-  display: flex;
-  flex-direction: column;
-  margin-top: 4px;
+  opacity: 0.7;
 }
 
 .label {
   font-size: 0.75em;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   opacity: 0.6;
-  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.value {
-  font-size: 0.9em;
-}
-
-.avgRow,
-.advRow {
+.cardRow {
   display: flex;
-  gap: 16px;
-  font-size: 0.9em;
+  flex-direction: column;
+  gap: 4px;
 }
 
-/* Tier pill */
+.statRow {
+  display: flex;
+  gap: 20px;
+  font-size: 0.95em;
+}
+
+/* TIER TAGS ------------------------------------------------------- */
 
 .tierTag {
-  padding: 5px 10px;
+  padding: 5px 12px;
   border-radius: 999px;
-  color: #fff;
   font-size: 0.75em;
-  font-weight: 600;
+  font-weight: bold;
+  color: white;
 }
 
 .tier-green {
@@ -205,34 +154,35 @@ h2 {
   background: #db4437;
 }
 
-/* Mini “chart” bars */
+/* TREND BARS ------------------------------------------------------ */
 
 .trendGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 4px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
 }
 
-.trendMetric {
-  font-size: 0.75em;
+.trendBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .trendLabel {
+  font-size: 0.75em;
   opacity: 0.8;
 }
 
 .trendBar {
-  background: #151515;
+  background: #111;
+  height: 7px;
   border-radius: 999px;
   overflow: hidden;
-  height: 6px;
-  margin-top: 3px;
 }
 
 .trendFill {
   height: 100%;
-  width: 0;
   background: linear-gradient(90deg, #00e676, #00b0ff);
+  width: 0;
   transition: width 0.35s ease;
 }
