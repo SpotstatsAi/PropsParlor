@@ -52,3 +52,70 @@
 .seasonAverages div {
   line-height: 1.3em;
 }
+.propCard {
+  background: #1b1f27;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border-left: 5px solid #4e4e4e;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.propHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.propName {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.smallText {
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.propSection {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+
+.label {
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+
+.value {
+  font-size: 0.9em;
+}
+
+.avgRow, .advRow {
+  display: flex;
+  gap: 15px;
+  font-size: 0.9em;
+}
+
+.tierTag {
+  padding: 5px 10px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.8em;
+}
+
+.tier-green {
+  background: #0f9d58;
+}
+
+.tier-yellow {
+  background: #f4b400;
+  color: #000;
+}
+
+.tier-red {
+  background: #db4437;
+}
