@@ -7,48 +7,65 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 
-<body>
-  <header>
-    <div class="logo">NBA Prop Engine</div>
-    <button id="loadButton" class="load-button">Load Today's Games</button>
+<body class="expandedMode">
+  <!-- Top bar ----------------------------------------------------->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-badge">SPOTSTATS.AI</div>
+        <div class="brand-title">NBA Prop Engine</div>
+      </div>
+
+      <button id="loadButton" class="primaryButton">
+        Load Today’s Games
+      </button>
+    </div>
   </header>
 
-  <div class="layout">
-    
+  <!-- Main layout ------------------------------------------------->
+  <main class="layout">
     <!-- LEFT SIDEBAR -->
     <aside class="sidebar">
-      <h2>Today's Games</h2>
-      <div id="games"></div>
+      <section class="panel">
+        <h2>Today's Games</h2>
+        <div id="games" class="scroll-list"></div>
+      </section>
 
-      <h2>Teams</h2>
-      <div id="teamsList"></div>
+      <section class="panel">
+        <h2>Teams</h2>
+        <div id="teamsList" class="scroll-list"></div>
+      </section>
     </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="content">
+    <!-- RIGHT MAIN PANEL -->
+    <section class="mainPanel">
+      <!-- Controls row: view toggle + confidence filters -->
+      <div class="controlsRow">
+        <div class="viewToggle">
+          <span class="controlLabel">View:</span>
+          <button class="toggleButton active" data-mode="expanded">
+            Expanded
+          </button>
+          <button class="toggleButton" data-mode="compact">
+            Compact
+          </button>
+        </div>
 
-      <!-- VIEW MODE SWITCH -->
-      <div class="viewToggle">
-        <span>View:</span>
-        <button class="toggleButton active" data-mode="expanded">Expanded</button>
-        <button class="toggleButton" data-mode="compact">Compact</button>
+        <div class="filters">
+          <button class="filterButton filterActive" data-filter="all">All</button>
+          <button class="filterButton" data-filter="green">Green</button>
+          <button class="filterButton" data-filter="yellow">Yellow</button>
+          <button class="filterButton" data-filter="red">Red</button>
+        </div>
       </div>
 
-      <!-- FILTERS -->
-      <div id="filters">
-        <button class="filterButton filterActive" data-filter="all">All</button>
-        <button class="filterButton" data-filter="green">Green</button>
-        <button class="filterButton" data-filter="yellow">Yellow</button>
-        <button class="filterButton" data-filter="red">Red</button>
-      </div>
-
-      <h2>Player Props</h2>
+      <h2 class="sectionTitle">Player Props</h2>
       <div id="propsOutput"></div>
 
-      <!-- TEMPLATE -->
+      <!-- Player card template ----------------------------------->
       <template id="propRowTemplate">
-        <div class="propCard">
-
+        <article class="propCard">
+          <!-- Header: name + tier pill -->
           <div class="propHeader">
             <div>
               <div class="propName"></div>
@@ -57,21 +74,42 @@
             <div class="tierTag"></div>
           </div>
 
+          <!-- Compact-only quick line of averages -->
           <div class="compactOnly compactStats">
             <span class="avgPts"></span>
             <span class="avgReb"></span>
             <span class="avgAst"></span>
           </div>
 
-          <div class="barSection compactOnly">
-            <div class="barRow"><span>PTS</span><div class="trendBar"><div class="trendPtsFill"></div></div></div>
-            <div class="barRow"><span>REB</span><div class="trendBar"><div class="trendRebFill"></div></div></div>
-            <div class="barRow"><span>AST</span><div class="trendBar"><div class="trendAstFill"></div></div></div>
+          <!-- Horizontal bar “chart” for PTS / REB / AST -->
+          <div class="barSection">
+            <div class="barRow">
+              <span class="barLabel">PTS</span>
+              <div class="trendBar">
+                <div class="trendPtsFill"></div>
+              </div>
+              <span class="barValue barPts"></span>
+            </div>
+            <div class="barRow">
+              <span class="barLabel">REB</span>
+              <div class="trendBar">
+                <div class="trendRebFill"></div>
+              </div>
+              <span class="barValue barReb"></span>
+            </div>
+            <div class="barRow">
+              <span class="barLabel">AST</span>
+              <div class="trendBar">
+                <div class="trendAstFill"></div>
+              </div>
+              <span class="barValue barAst"></span>
+            </div>
           </div>
 
+          <!-- Expanded-mode detailed sections -->
           <div class="fullDetails">
             <div class="propSection">
-              <div class="label">Opponent</div>
+              <div class="label">Matchup</div>
               <div class="oppLine value"></div>
               <div class="oppRank value"></div>
             </div>
@@ -94,22 +132,22 @@
             </div>
 
             <div class="propSection">
-              <div class="label">Team Record</div>
-              <div class="teamRecord value"></div>
-            </div>
-
-            <div class="propSection">
-              <div class="label">Opponent Record</div>
-              <div class="oppRecord value"></div>
-              <div class="oppStreak value"></div>
+              <div class="label">Team Context</div>
+              <div class="value">
+                Team: <span class="teamRecord"></span>
+              </div>
+              <div class="value">
+                Opp: <span class="oppRecord"></span>
+              </div>
+              <div class="value">
+                Streak: <span class="oppStreak"></span>
+              </div>
             </div>
           </div>
-
-        </div>
+        </article>
       </template>
-
-    </main>
-  </div>
+    </section>
+  </main>
 
   <script src="app.js"></script>
 </body>
