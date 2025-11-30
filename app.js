@@ -1,16 +1,15 @@
-// --------------------------------------------------
-// Global state
-// --------------------------------------------------
+//------------------------------------------------------
+// GLOBAL STATE
+//------------------------------------------------------
 let rostersData = {};
 let scheduleData = {};
 let playerStats = {};
 let lastProps = [];
 let currentFilter = "all";
-let selectedGame = null;
 
-// --------------------------------------------------
-// Data loading
-// --------------------------------------------------
+//------------------------------------------------------
+// LOAD DATA
+//------------------------------------------------------
 async function loadData() {
   try {
     const [rosters, schedule, stats] = await Promise.all([
@@ -25,16 +24,15 @@ async function loadData() {
 
     renderGames();
     renderTeams();
-    updateScoreSummary(null);
   } catch (err) {
-    console.error("Error loading data:", err);
+    console.error(err);
     alert("Failed loading engine data.");
   }
 }
 
-// --------------------------------------------------
-// Left side: Games & Teams
-// --------------------------------------------------
+//------------------------------------------------------
+// SIDEBAR RENDER
+//------------------------------------------------------
 function renderGames() {
   const gamesDiv = document.getElementById("games");
   gamesDiv.innerHTML = "";
@@ -43,10 +41,7 @@ function renderGames() {
   const games = scheduleData[today] || [];
 
   if (!games.length) {
-    gamesDiv.innerHTML = `<p class="emptyState">No games today.</p>`;
-    updateScoreSummary(null);
-    lastProps = [];
-    renderProps();
+    gamesDiv.innerHTML = `<p>No games today</p>`;
     return;
   }
 
@@ -59,22 +54,9 @@ function renderGames() {
       <div>${game.time_et}</div>
     `;
 
-    card.addEventListener("click", () => {
-      selectedGame = game;
-      highlightSelectedGame(card);
-      showGameProps(game);
-      updateScoreSummary(game);
-    });
-
+    card.addEventListener("click", () => showGameProps(game));
     gamesDiv.appendChild(card);
   });
-}
-
-function highlightSelectedGame(activeCard) {
-  document
-    .querySelectorAll(".gameCard")
-    .forEach(card => card.classList.remove("activeGame"));
-  activeCard.classList.add("activeGame");
 }
 
 function renderTeams() {
@@ -90,96 +72,65 @@ function renderTeams() {
   });
 }
 
-// --------------------------------------------------
-// Header scoreboard summary
-// --------------------------------------------------
-function updateScoreSummary(game) {
-  const box = document.getElementById("scoreSummary");
-  if (!box) return;
-
-  if (!game) {
-    box.textContent = "Select a game to see matchup summary.";
-    return;
-  }
-
-  box.textContent = `${game.away_team} @ ${game.home_team} · ${game.time_et}`;
-}
-
-// --------------------------------------------------
-// Click handlers
-// --------------------------------------------------
-function showTeamPlayers(team) {
-  const panel = document.getElementById("propsOutput");
-  panel.innerHTML = `<h3 class="panelTitle">${team} Roster</h3>`;
-
-  (rostersData[team] || []).forEach(name => {
-    const div = document.createElement("div");
-    div.className = "rosterLine";
-    div.textContent = name;
-    panel.appendChild(div);
-  });
-
-  lastProps = [];
-}
-
-function showGameProps(game) {
-  const awayPlayers = rostersData[game.away_team] || [];
-  const homePlayers = rostersData[game.home_team] || [];
-
-  const entries = [];
-  awayPlayers.forEach(name => entries.push(buildProp(name)));
-  homePlayers.forEach(name => entries.push(buildProp(name)));
-
-  lastProps = entries;
-  renderProps();
-}
-
-// --------------------------------------------------
-// Build one player prop object
-// --------------------------------------------------
+//------------------------------------------------------
+// BUILD PLAYER OBJECT
+//------------------------------------------------------
 function buildProp(name) {
-  const stats = playerStats[name] || {};
+  const s = playerStats[name] || {};
 
-  const score = scorePlayer(stats);
-  let tier = "RED";
-  if (score >= 0.75) tier = "GREEN";
-  else if (score >= 0.55) tier = "YELLOW";
+  const confidence = computeConfidenceScore(s);
+  const tier =
+    confidence >= 75 ? "GREEN" :
+    confidence >= 55 ? "YELLOW" :
+    "RED";
 
-  return {
-    name,
-    stats,
-    tier,
-    score
-  };
+  return { name, stats: s, tier, confidence };
 }
 
-// Green / Yellow / Red scoring logic
-function scorePlayer(s) {
-  if (!s || !s.pts) return 0.45;
+//------------------------------------------------------
+// CONFIDENCE ENGINE (0–100)
+//------------------------------------------------------
+function computeConfidenceScore(s) {
+  if (!s || !s.pts) return 20;
 
-  let sc = 0.5;
+  let score = 50; // baseline neutral
 
-  if (s.usage > 24) sc += 0.12;
-  else if (s.usage > 20) sc += 0.06;
+  // Usage (weight 15)
+  score += clamp(s.usage * 0.6, -10, 15);
 
-  if (s.min > 32) sc += 0.12;
-  else if (s.min > 26) sc += 0.06;
+  // Minutes (weight 15)
+  if (s.min >= 34) score += 15;
+  else if (s.min >= 28) score += 8;
+  else score -= 4;
 
-  if (s.def_rank && s.def_rank <= 10) sc += 0.08;
-  if (s.def_rank && s.def_rank >= 22) sc -= 0.06;
-
-  // Nudge with trend vs season if we have last5
-  const last5Pts = Array.isArray(s.trend_pts) && s.trend_pts.length
-    ? avg(s.trend_pts)
-    : null;
-
-  if (last5Pts !== null) {
-    const delta = last5Pts - s.pts;
-    if (delta > 2.0) sc += 0.06;
-    else if (delta < -2.0) sc -= 0.06;
+  // Opponent defense (weight 10)
+  if (s.def_rank) {
+    if (s.def_rank <= 8) score -= 8;
+    else if (s.def_rank >= 22) score += 6;
   }
 
-  return Math.max(0, Math.min(1, sc));
+  // Last-5 trend (weight 20)
+  if (Array.isArray(s.trend_pts) && s.trend_pts.length) {
+    const last5 = avg(s.trend_pts);
+    const delta = last5 - s.pts;
+
+    if (delta > 3) score += 15;
+    else if (delta > 1.5) score += 8;
+    else if (delta < -3) score -= 12;
+  }
+
+  // Volume & role (weight 10)
+  if (s.min >= 32 && s.usage >= 24) score += 10;
+
+  // Opponent streak (weight 5)
+  if (s.opp_streak && s.opp_streak.startsWith("L")) score += 3;
+  if (s.opp_streak && s.opp_streak.startsWith("W")) score -= 3;
+
+  return clamp(score, 0, 100);
+}
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
 }
 
 function avg(arr) {
@@ -187,206 +138,111 @@ function avg(arr) {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
-// --------------------------------------------------
-// Render all player cards
-// --------------------------------------------------
+//------------------------------------------------------
+// SHOW GAME → BUILD PROPS
+//------------------------------------------------------
+function showGameProps(game) {
+  const awayList = rostersData[game.away_team] || [];
+  const homeList = rostersData[game.home_team] || [];
+
+  const entries = [];
+  awayList.forEach(name => entries.push(buildProp(name)));
+  homeList.forEach(name => entries.push(buildProp(name)));
+
+  lastProps = entries;
+  renderProps();
+}
+
+function showTeamPlayers(team) {
+  const panel = document.getElementById("propsOutput");
+  panel.innerHTML = `<h3>${team} Roster</h3>`;
+  (rostersData[team] || []).forEach(p => {
+    panel.innerHTML += `<div>${p}</div>`;
+  });
+  lastProps = [];
+}
+
+//------------------------------------------------------
+// SAFE RENDER PLAYER CARDS (WORKS EVEN IF FIELDS MISSING)
+//------------------------------------------------------
 function renderProps() {
   const panel = document.getElementById("propsOutput");
   const template = document.getElementById("propRowTemplate");
 
   panel.innerHTML = "";
-  if (!template) return;
 
-  const filtered = lastProps.filter(p => {
+  const visible = lastProps.filter(p => {
     if (currentFilter === "all") return true;
     return p.tier === currentFilter.toUpperCase();
   });
 
-  filtered.sort((a, b) => b.score - a.score);
+  visible.sort((a, b) => b.confidence - a.confidence);
 
-  filtered.forEach(p => {
+  visible.forEach(p => {
     const clone = document.importNode(template.content, true);
     const s = p.stats || {};
 
-    // --- Header ---
+    // NAME + TEAM
     clone.querySelector(".propName").textContent = p.name;
-    clone.querySelector(".propTeam").textContent = s.team || "";
+    clone.querySelector(".propTeam").textContent = s.team ?? "—";
 
-    const tierEl = clone.querySelector(".tierTag");
-    if (tierEl) {
-      tierEl.textContent = p.tier;
-      tierEl.classList.remove("tier-green", "tier-yellow", "tier-red");
-      if (p.tier === "GREEN") tierEl.classList.add("tier-green");
-      else if (p.tier === "YELLOW") tierEl.classList.add("tier-yellow");
-      else tierEl.classList.add("tier-red");
-    }
+    // CONFIDENCE
+    clone.querySelector(".confidenceValue").textContent =
+      p.confidence ?? 0;
 
-    // --- Meta badges: role / usage / pace ---
-    const posBadge = clone.querySelector(".posBadge");
-    const usgBadge = clone.querySelector(".usgBadge");
-    const paceBadge = clone.querySelector(".paceBadge");
+    const tier = p.tier || "RED";
+    const pill = clone.querySelector(".tierTag");
+    pill.textContent = tier;
+    pill.classList.remove("tier-green", "tier-yellow", "tier-red");
+    if (tier === "GREEN") pill.classList.add("tier-green");
+    else if (tier === "YELLOW") pill.classList.add("tier-yellow");
+    else pill.classList.add("tier-red");
 
-    const minutes = s.min ?? 0;
-    const usage = s.usage ?? 0;
-    const pace = s.pace ?? null;
+    // MATCHUP
+    clone.querySelector(".oppLine").textContent =
+      `${s.team ?? "—"} vs ${s.opponent ?? "—"}`;
+    clone.querySelector(".oppRank").textContent =
+      `Defense rank: #${s.def_rank ?? "—"}`;
+    clone.querySelector(".oppStreak").textContent =
+      `Opp streak: ${s.opp_streak ?? "—"}`;
 
-    if (posBadge) {
-      if (minutes >= 32) posBadge.textContent = "High-min starter";
-      else if (minutes >= 24) posBadge.textContent = "Core rotation";
-      else posBadge.textContent = "Bench / spot minutes";
-    }
+    // SEASON AVG
+    clone.querySelector(".avgPts").textContent = (s.pts ?? 0).toFixed(1);
+    clone.querySelector(".avgReb").textContent = (s.reb ?? 0).toFixed(1);
+    clone.querySelector(".avgAst").textContent = (s.ast ?? 0).toFixed(1);
 
-    if (usgBadge) {
-      usgBadge.textContent = `USG ${usage.toFixed(1)}%`;
-    }
-
-    if (paceBadge) {
-      if (pace == null) {
-        paceBadge.textContent = "Pace: N/A";
-      } else if (pace >= 102) {
-        paceBadge.textContent = "Fast pace";
-      } else if (pace <= 98) {
-        paceBadge.textContent = "Slow pace";
-      } else {
-        paceBadge.textContent = "Average pace";
-      }
-    }
-
-    // --- Matchup section ---
-    const opp = s.opponent;
-    const oppLineEl = clone.querySelector(".oppLine");
-    const oppRankEl = clone.querySelector(".oppRank");
-    const oppStreakEl = clone.querySelector(".oppStreak");
-
-    if (oppLineEl) {
-      oppLineEl.textContent = opp ? `${s.team} vs ${opp}` : "No game today";
-    }
-
-    if (oppRankEl) {
-      oppRankEl.textContent = s.def_rank
-        ? `Defense rank: #${s.def_rank}`
-        : "Defense rank: N/A";
-    }
-
-    if (oppStreakEl) {
-      oppStreakEl.textContent = s.opp_streak
-        ? `Opp streak: ${s.opp_streak}`
-        : "Opp streak: N/A";
-    }
-
-    // --- Season averages ---
-    const pts = s.pts ?? 0;
-    const reb = s.reb ?? 0;
-    const ast = s.ast ?? 0;
-
-    const avgPtsEl = clone.querySelector(".avgPts");
-    const avgRebEl = clone.querySelector(".avgReb");
-    const avgAstEl = clone.querySelector(".avgAst");
-
-    if (avgPtsEl) avgPtsEl.textContent = pts.toFixed(1);
-    if (avgRebEl) avgRebEl.textContent = reb.toFixed(1);
-    if (avgAstEl) avgAstEl.textContent = ast.toFixed(1);
-
-    // Trend bars vs reasonable ceilings (40 / 15 / 12)
-    const ptsPct = Math.min(100, (pts / 40) * 100);
-    const rebPct = Math.min(100, (reb / 15) * 100);
-    const astPct = Math.min(100, (ast / 12) * 100);
-
-    const ptsFill = clone.querySelector(".trendPtsFill");
-    const rebFill = clone.querySelector(".trendRebFill");
-    const astFill = clone.querySelector(".trendAstFill");
-
-    if (ptsFill) ptsFill.style.width = ptsPct + "%";
-    if (rebFill) rebFill.style.width = rebPct + "%";
-    if (astFill) astFill.style.width = astPct + "%";
-
-    // --- Team context ---
-    const teamRecordEl = clone.querySelector(".teamRecord");
-    const oppRecordEl = clone.querySelector(".oppRecord");
-
-    if (teamRecordEl) {
-      teamRecordEl.textContent = s.team_record || "N/A";
-    }
-    if (oppRecordEl) {
-      oppRecordEl.textContent = s.opp_record || "N/A";
-    }
-
-    // --- Trend note badges from rolling windows ---
-    const volBadge = clone.querySelector(".volBadge");
-    const hotColdBadge = clone.querySelector(".hotColdBadge");
-
-    const last5 = Array.isArray(s.trend_pts) && s.trend_pts.length
-      ? avg(s.trend_pts)
-      : null;
-    const last10 = Array.isArray(s.ten_game_pts) && s.ten_game_pts.length
-      ? avg(s.ten_game_pts)
-      : null;
-
-    if (volBadge) {
-      if (last10 !== null && last10 > pts + 1.5) {
-        volBadge.textContent = "Volume trending up";
-      } else if (last10 !== null && last10 < pts - 1.5) {
-        volBadge.textContent = "Usage cooling off";
-      } else {
-        volBadge.textContent = "Volume stable";
-      }
-    }
-
-    if (hotColdBadge) {
-      if (last5 !== null) {
-        const delta = last5 - pts;
-        if (delta > 2) hotColdBadge.textContent = "HOT last 5";
-        else if (delta < -2) hotColdBadge.textContent = "COLD last 5";
-        else hotColdBadge.textContent = "Neutral last 5";
-      } else {
-        hotColdBadge.textContent = "No trend data";
-      }
-    }
+    // SAFE BARS
+    setBarWidth(clone.querySelector(".trendPtsFill"), s.pts, 40);
+    setBarWidth(clone.querySelector(".trendRebFill"), s.reb, 20);
+    setBarWidth(clone.querySelector(".trendAstFill"), s.ast, 15);
 
     panel.appendChild(clone);
   });
-
-  if (!filtered.length) {
-    panel.innerHTML = `<p class="emptyState">No players match this filter.</p>`;
-  }
 }
 
-// --------------------------------------------------
-// Filter buttons (All / Green / Yellow / Red)
-// --------------------------------------------------
+//------------------------------------------------------
+// SAFE BAR WIDTH
+//------------------------------------------------------
+function setBarWidth(bar, val = 0, max) {
+  if (!bar) return;
+  const pct = Math.min(100, Math.max(0, (val / max) * 100));
+  bar.style.width = pct + "%";
+}
+
+//------------------------------------------------------
+// FILTER BUTTONS
+//------------------------------------------------------
 document.querySelectorAll(".filterButton").forEach(btn => {
   btn.addEventListener("click", () => {
     currentFilter = btn.dataset.filter;
-
-    document
-      .querySelectorAll(".filterButton")
+    document.querySelectorAll(".filterButton")
       .forEach(b => b.classList.remove("filterActive"));
-
     btn.classList.add("filterActive");
     renderProps();
   });
 });
 
-// --------------------------------------------------
-// View mode toggle (Expanded / Compact)
-// --------------------------------------------------
-const viewToggleButtons = document.querySelectorAll(".toggleButton");
-
-viewToggleButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
-    viewToggleButtons.forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    const mode = btn.dataset.mode;
-    if (mode === "compact") {
-      document.body.classList.add("compactMode");
-    } else {
-      document.body.classList.remove("compactMode");
-    }
-  });
-});
-
-// --------------------------------------------------
-// Hook up Load button
-// --------------------------------------------------
+//------------------------------------------------------
+// LOAD BUTTON
+//------------------------------------------------------
 document.getElementById("loadButton").addEventListener("click", loadData);
