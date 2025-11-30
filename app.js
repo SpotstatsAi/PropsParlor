@@ -1,42 +1,11 @@
-/* ============================================================
-   GLOBAL STATE
-============================================================ */
 let rostersData = {};
 let scheduleData = {};
 let playerStats = {};
 let lastProps = [];
 let currentFilter = "all";
-let viewMode = "expanded"; // "expanded" | "compact"
+let currentView = "expanded";
 
-document.body.classList.add("expandedMode");
-
-/* ============================================================
-   VIEW MODE TOGGLE
-============================================================ */
-document.querySelectorAll(".toggleButton").forEach(btn => {
-  btn.addEventListener("click", () => {
-    viewMode = btn.dataset.mode;
-
-    document
-      .querySelectorAll(".toggleButton")
-      .forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    if (viewMode === "compact") {
-      document.body.classList.remove("expandedMode");
-      document.body.classList.add("compactMode");
-    } else {
-      document.body.classList.remove("compactMode");
-      document.body.classList.add("expandedMode");
-    }
-
-    renderProps(); // re-render with new layout
-  });
-});
-
-/* ============================================================
-   DATA LOADING
-============================================================ */
+// Load all JSON assets
 async function loadData() {
   try {
     const [rosters, schedule, stats] = await Promise.all([
@@ -49,35 +18,17 @@ async function loadData() {
     scheduleData = schedule;
     playerStats = stats;
 
-    renderTeams();
     renderGames();
+    renderTeams();
+    lastProps = [];
+    renderProps();
   } catch (err) {
     console.error(err);
     alert("Failed loading engine data.");
   }
 }
 
-document.getElementById("loadButton").onclick = loadData;
-
-/* ============================================================
-   RENDER TEAMS
-============================================================ */
-function renderTeams() {
-  const container = document.getElementById("teamsList");
-  container.innerHTML = "";
-
-  Object.keys(rostersData).forEach(team => {
-    const div = document.createElement("div");
-    div.className = "teamEntry";
-    div.textContent = team;
-    div.onclick = () => showTeamPlayers(team);
-    container.appendChild(div);
-  });
-}
-
-/* ============================================================
-   RENDER TODAY'S GAMES
-============================================================ */
+// Sidebar: games
 function renderGames() {
   const gamesDiv = document.getElementById("games");
   gamesDiv.innerHTML = "";
@@ -95,176 +46,264 @@ function renderGames() {
     card.className = "gameCard";
     card.innerHTML = `
       <strong>${game.away_team} @ ${game.home_team}</strong>
-      <div>${game.time_et || ""}</div>
+      <div>${game.time_et}</div>
     `;
     card.onclick = () => showGameProps(game);
     gamesDiv.appendChild(card);
   });
 }
 
-/* ============================================================
-   SHOW TEAM ROSTER (sidebar click)
-============================================================ */
-function showTeamPlayers(team) {
-  const panel = document.getElementById("propsOutput");
-  panel.innerHTML = `<h3>${team} Roster</h3>`;
+// Sidebar: teams
+function renderTeams() {
+  const list = document.getElementById("teamsList");
+  list.innerHTML = "";
 
-  (rostersData[team] || []).forEach(name => {
-    const div = document.createElement("div");
-    div.textContent = name;
-    div.className = "propCard";
-    panel.appendChild(div);
-  });
-
-  lastProps = [];
+  Object.keys(rostersData)
+    .sort()
+    .forEach(team => {
+      const div = document.createElement("div");
+      div.className = "teamEntry";
+      div.textContent = team;
+      div.onclick = () => showTeamPlayers(team);
+      list.appendChild(div);
+    });
 }
 
-/* ============================================================
-   SHOW PLAYER PROPS FOR A GAME
-============================================================ */
+// Show all players on a team
+function showTeamPlayers(team) {
+  const players = rostersData[team] || [];
+  lastProps = players.map(name => buildProp(name));
+  renderProps();
+}
+
+// Show all props for a given game
 function showGameProps(game) {
   const awayPlayers = rostersData[game.away_team] || [];
   const homePlayers = rostersData[game.home_team] || [];
 
   const entries = [];
-  awayPlayers.forEach(name => entries.push(buildProp(name)));
-  homePlayers.forEach(name => entries.push(buildProp(name)));
+  awayPlayers.forEach(n => entries.push(buildProp(n)));
+  homePlayers.forEach(n => entries.push(buildProp(n)));
 
   lastProps = entries;
   renderProps();
 }
 
-/* ============================================================
-   BUILD SINGLE PLAYER ENTRY
-============================================================ */
+// Build a single "prop object"
 function buildProp(name) {
   const stats = playerStats[name] || {};
-  const score = scorePlayer(stats);
+  const confidence = stats.confidence ?? 50;
 
   let tier = "RED";
-  if (score >= 0.75) tier = "GREEN";
-  else if (score >= 0.55) tier = "YELLOW";
+  if (confidence >= 80) tier = "GREEN";
+  else if (confidence >= 60) tier = "YELLOW";
 
-  return { name, stats, tier, score };
+  return { name, stats, tier, confidence };
 }
 
-/* ============================================================
-   SCORING LOGIC
-============================================================ */
-function scorePlayer(s) {
-  if (!s || s.pts == null) return 0.45;
-
-  let sc = 0.5;
-  if (s.usage > 22) sc += 0.1;
-  if (s.min > 28) sc += 0.1;
-  if (s.def_rank && s.def_rank <= 10) sc += 0.1;
-  if (s.def_rank && s.def_rank >= 20) sc -= 0.1;
-
-  return Math.max(0, Math.min(1, sc));
-}
-
-/* ============================================================
-   RENDER PLAYER CARDS
-============================================================ */
+// Render props list
 function renderProps() {
   const panel = document.getElementById("propsOutput");
   const template = document.getElementById("propRowTemplate");
-  if (!template) return;
-
   panel.innerHTML = "";
+  if (!template) return;
 
   const filtered = lastProps.filter(p => {
     if (currentFilter === "all") return true;
     return p.tier === currentFilter.toUpperCase();
   });
 
-  filtered.sort((a, b) => b.score - a.score);
+  // Sort by confidence descending
+  filtered.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
 
   filtered.forEach(p => {
     const clone = document.importNode(template.content, true);
+    const card = clone.querySelector(".propCard");
     const s = p.stats || {};
 
-    const pts = Number(s.pts ?? 0);
-    const reb = Number(s.reb ?? 0);
-    const ast = Number(s.ast ?? 0);
+    if (currentView === "compact") {
+      card.classList.add("compact");
+      card.dataset.view = "compact";
+    } else {
+      card.classList.remove("compact");
+      card.dataset.view = "expanded";
+    }
 
-    /* Header */
+    // Header
     clone.querySelector(".propName").textContent = p.name;
     clone.querySelector(".propTeam").textContent = s.team || "";
 
-    /* Matchup */
+    const confEl = clone.querySelector(".confidenceValue");
+    if (confEl) confEl.textContent = Math.round(p.confidence || 0);
+
+    const tierTag = clone.querySelector(".tierTag");
+    if (tierTag) {
+      tierTag.textContent = s.rec_tag || p.tier;
+      tierTag.classList.remove("tier-green", "tier-yellow", "tier-red");
+      if (p.tier === "GREEN") tierTag.classList.add("tier-green");
+      else if (p.tier === "YELLOW") tierTag.classList.add("tier-yellow");
+      else tierTag.classList.add("tier-red");
+    }
+
+    // Matchup block
     const opp = s.opponent;
-    clone.querySelector(".oppLine").textContent =
-      opp ? `${s.team} vs ${opp}` : "No game today";
+    const oppLine = clone.querySelector(".oppLine");
+    const oppRank = clone.querySelector(".oppRank");
+    const smiFill = clone.querySelector(".smiFill");
+    const smiText = clone.querySelector(".smiText");
 
-    clone.querySelector(".oppRank").textContent =
-      s.def_rank ? `Defense Rank: ${s.def_rank}` : "";
+    if (oppLine) {
+      oppLine.textContent = opp ? `${s.team} vs ${opp}` : "No game today";
+    }
+    if (oppRank) {
+      oppRank.textContent = s.def_rank
+        ? `Defense Rank: ${s.def_rank}`
+        : "Defense Rank: N/A";
+    }
 
-    /* Season averages text */
-    const avgPtsEls = clone.querySelectorAll(".avgPts");
-    const avgRebEls = clone.querySelectorAll(".avgReb");
-    const avgAstEls = clone.querySelectorAll(".avgAst");
+    const smi = s.smi ?? 0.5;
+    const smiPct = Math.round(smi * 100);
+    if (smiFill) smiFill.style.width = `${smiPct}%`;
 
-    avgPtsEls.forEach(el => (el.textContent = `PTS: ${pts.toFixed(1)}`));
-    avgRebEls.forEach(el => (el.textContent = `REB: ${reb.toFixed(1)}`));
-    avgAstEls.forEach(el => (el.textContent = `AST: ${ast.toFixed(1)}`));
+    let smiLabel = "Average";
+    if (smi >= 0.7) smiLabel = "Strong matchup";
+    else if (smi <= 0.35) smiLabel = "Tough matchup";
 
-    /* Advanced */
-    clone.querySelector(".usageLine").textContent =
-      `Usage: ${(s.usage ?? 0).toFixed(1)}%`;
+    if (smiText) smiText.textContent = `${smiLabel} (${smiPct})`;
 
-    clone.querySelector(".paceLine").textContent =
-      `Pace: ${s.pace ?? "N/A"}`;
+    // Season vs last 5
+    const pts = s.pts ?? 0;
+    const reb = s.reb ?? 0;
+    const ast = s.ast ?? 0;
 
-    /* Records */
-    clone.querySelector(".teamRecord").textContent =
-      s.team_record || "N/A";
+    const l5_pts = s.l5_pts ?? pts;
+    const l5_reb = s.l5_reb ?? reb;
+    const l5_ast = s.l5_ast ?? ast;
 
-    clone.querySelector(".oppRecord").textContent =
-      s.opp_record || "N/A";
+    const avgSummary = clone.querySelector(".avgSummary");
+    if (avgSummary) {
+      avgSummary.textContent = `Season: ${pts.toFixed(
+        1
+      )}/${reb.toFixed(1)}/${ast.toFixed(1)} · L5: ${l5_pts.toFixed(
+        1
+      )}/${l5_reb.toFixed(1)}/${l5_ast.toFixed(1)} (PTS/REB/AST)`;
+    }
 
-    clone.querySelector(".oppStreak").textContent =
-      s.opp_streak || "N/A";
+    fillTrend(
+      clone,
+      "Pts",
+      pts,
+      l5_pts,
+      s.trend_pts,
+      s.cons_pts,
+      40 // rough max
+    );
+    fillTrend(
+      clone,
+      "Reb",
+      reb,
+      l5_reb,
+      s.trend_reb,
+      s.cons_reb,
+      18
+    );
+    fillTrend(
+      clone,
+      "Ast",
+      ast,
+      l5_ast,
+      s.trend_ast,
+      s.cons_ast,
+      12
+    );
 
-    /* Horizontal bars (normalize vs ceilings) */
-    const ptsPct = Math.min(100, (pts / 40) * 100);
-    const rebPct = Math.min(100, (reb / 15) * 100);
-    const astPct = Math.min(100, (ast / 12) * 100);
+    // Advanced block
+    const usageLine = clone.querySelector(".usageLine");
+    const paceLine = clone.querySelector(".paceLine");
+    const teamRecord = clone.querySelector(".teamRecord");
+    const oppRecord = clone.querySelector(".oppRecord");
+    const oppStreak = clone.querySelector(".oppStreak");
+    const consLine = clone.querySelector(".consistencyLine");
 
-    const ptsFill = clone.querySelector(".trendPtsFill");
-    const rebFill = clone.querySelector(".trendRebFill");
-    const astFill = clone.querySelector(".trendAstFill");
+    if (usageLine) {
+      const u = s.usage ?? 0;
+      usageLine.textContent = `Usage: ${u.toFixed(1)}%`;
+    }
 
-    if (ptsFill) ptsFill.style.width = `${isFinite(ptsPct) ? ptsPct : 0}%`;
-    if (rebFill) rebFill.style.width = `${isFinite(rebPct) ? rebPct : 0}%`;
-    if (astFill) astFill.style.width = `${isFinite(astPct) ? astPct : 0}%`;
+    if (paceLine) {
+      paceLine.textContent = `Possessions: ${
+        s.pace != null ? s.pace : "N/A"
+      }`;
+    }
 
-    const barPts = clone.querySelector(".barPts");
-    const barReb = clone.querySelector(".barReb");
-    const barAst = clone.querySelector(".barAst");
-    if (barPts) barPts.textContent = pts.toFixed(1);
-    if (barReb) barReb.textContent = reb.toFixed(1);
-    if (barAst) barAst.textContent = ast.toFixed(1);
+    if (teamRecord) {
+      teamRecord.textContent = `Team Record: ${s.team_record || "N/A"}`;
+    }
 
-    /* Tier pill */
-    const tag = clone.querySelector(".tierTag");
-    tag.textContent = p.tier;
-    tag.classList.add(`tier-${p.tier.toLowerCase()}`);
+    if (oppRecord) {
+      oppRecord.textContent = `Opp Record: ${s.opp_record || "N/A"}`;
+    }
+
+    if (oppStreak) {
+      oppStreak.textContent = `Opp Streak: ${s.opp_streak || "N/A"}`;
+    }
+
+    if (consLine) {
+      const avgCons =
+        ((s.cons_pts ?? 0.5) +
+          (s.cons_reb ?? 0.5) +
+          (s.cons_ast ?? 0.5)) /
+        3;
+      const consPct = Math.round(avgCons * 100);
+      consLine.innerHTML = `Profile · Consistency: <strong>${consPct}%</strong>`;
+    }
 
     panel.appendChild(clone);
   });
 }
 
-/* ============================================================
-   FILTER BUTTONS
-============================================================ */
+// Helper: fill trend bars / arrows
+function fillTrend(clone, label, seasonVal, last5Val, trend, cons, maxCeiling) {
+  const bar = clone.querySelector(`.trend${label}Fill`);
+  const valSpan = clone.querySelector(`.trendValue${label}`);
+  const arrowSpan = clone.querySelector(`.trendArrow${label}`);
+
+  const pct = Math.min(100, (last5Val / (maxCeiling || 1)) * 100);
+
+  if (bar) bar.style.width = `${pct}%`;
+  if (valSpan)
+    valSpan.textContent = `${last5Val.toFixed(1)} (${seasonVal.toFixed(1)})`;
+
+  let arrow = "■";
+  if (trend === "up") arrow = "▲";
+  else if (trend === "down") arrow = "▼";
+
+  if (arrowSpan) arrowSpan.textContent = arrow;
+}
+
+// Filter buttons
 document.querySelectorAll(".filterButton").forEach(btn => {
-  btn.onclick = () => {
+  btn.addEventListener("click", () => {
     currentFilter = btn.dataset.filter;
     document
       .querySelectorAll(".filterButton")
-      .forEach(b => b.classList.remove("filterActive"));
-    btn.classList.add("filterActive");
+      .forEach(b => b.classList.remove("pill-active"));
+    btn.classList.add("pill-active");
     renderProps();
-  };
+  });
 });
+
+// View toggle
+document.querySelectorAll(".viewBtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    currentView = btn.dataset.view;
+    document
+      .querySelectorAll(".viewBtn")
+      .forEach(b => b.classList.remove("viewBtn-active"));
+    btn.classList.add("viewBtn-active");
+    renderProps();
+  });
+});
+
+// Load button
+document.getElementById("loadButton").addEventListener("click", loadData);
