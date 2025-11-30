@@ -62,10 +62,26 @@ def get_season_games_free():
 
     return games
 
-
 def get_todays_games():
-    url = f"{SCORES}/GamesByDate/{TODAY}?key={API_KEY}"
-    return fetch_json(url)
+    """Return today's games; fallback to yesterday if unavailable (free tier safe)."""
+    url_today = f"{SCORES}/GamesByDate/{TODAY}?key={API_KEY}"
+
+    try:
+        games = fetch_json(url_today)
+        if games:
+            return games
+    except:
+        pass
+
+    # SportsData free tier usually publishes with a 1-day delay
+    fallback = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+    url_yesterday = f"{SCORES}/GamesByDate/{fallback}?key={API_KEY}"
+
+    try:
+        games = fetch_json(url_yesterday)
+        return games
+    except:
+        return []
 
 
 def get_team_player_stats(team):
