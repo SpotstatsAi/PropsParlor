@@ -1,6 +1,41 @@
 name: Build NBA Stats (balldontlie)
 
 on:
+ workflow_dispatch:
+ schedule:
+   - cron: "15 11 * * *"   # 11:15 UTC daily (adjust if you want)
+
+jobs:
+ build:
+   runs-on: ubuntu-latest
+
+   steps:
+     - name: Checkout
+       uses: actions/checkout@v3
+
+     - name: Set up Python
+       uses: actions/setup-python@v4
+       with:
+         python-version: "3.11"
+
+     - name: Install dependencies
+       run: |
+         python -m pip install --upgrade pip
+         pip install requests
+
+     - name: Run builder
+       env:
+         BALDONTLIE_API_KEY: ${{ secrets.BALDONTLIE_API_KEY }}
+       run: |
+         python scripts/build_player_stats_balldontlie.py
+
+     - name: Commit results
+       uses: stefanzweifel/git-auto-commit-action@v5
+       with:
+         commit_message: "Update player_stats.json via balldontlie [auto]"
+         file_pattern: player_stats.jsonname: Build NBA Stats (balldontlie)
+
+on:
   # run manually from the Actions tab
   workflow_dispatch:
   # and/or daily at 11:00 UTC (adjust if you want)
