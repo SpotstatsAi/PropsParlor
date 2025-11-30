@@ -11,18 +11,16 @@ let viewMode = "expanded"; // expanded | compact
 document.body.classList.add("expandedMode");
 
 /* ============================================================
-   VIEW MODE TOGGLE (Compact / Expanded)
+   VIEW MODE TOGGLE
 ============================================================ */
 document.querySelectorAll(".toggleButton").forEach(btn => {
   btn.addEventListener("click", () => {
     viewMode = btn.dataset.mode;
 
-    // Update button appearance
     document.querySelectorAll(".toggleButton")
       .forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
 
-    // Apply correct body class
     if (viewMode === "compact") {
       document.body.classList.remove("expandedMode");
       document.body.classList.add("compactMode");
@@ -31,13 +29,13 @@ document.querySelectorAll(".toggleButton").forEach(btn => {
       document.body.classList.add("expandedMode");
     }
 
-    renderProps(); // re-render with new layout
+    renderProps();
   });
 });
 
 
 /* ============================================================
-   LOAD DATA
+   DATA LOADING
 ============================================================ */
 async function loadData() {
   try {
@@ -80,7 +78,7 @@ function renderTeams() {
 
 
 /* ============================================================
-   RENDER TODAY’S GAMES
+   RENDER GAMES
 ============================================================ */
 function renderGames() {
   const gamesDiv = document.getElementById("games");
@@ -108,7 +106,7 @@ function renderGames() {
 
 
 /* ============================================================
-   TEAM CLICK → SHOW ROSTER
+   SHOW TEAM ROSTER
 ============================================================ */
 function showTeamPlayers(team) {
   const panel = document.getElementById("propsOutput");
@@ -126,15 +124,15 @@ function showTeamPlayers(team) {
 
 
 /* ============================================================
-   GAME CLICK → BUILD PLAYER PROPS
+   SHOW PLAYER PROPS FOR GAME
 ============================================================ */
 function showGameProps(game) {
-  const awayPlayers = rostersData[game.away_team] || [];
-  const homePlayers = rostersData[game.home_team] || [];
+  const away = rostersData[game.away_team] || [];
+  const home = rostersData[game.home_team] || [];
 
   const entries = [];
-  awayPlayers.forEach(n => entries.push(buildProp(n)));
-  homePlayers.forEach(n => entries.push(buildProp(n)));
+  away.forEach(n => entries.push(buildProp(n)));
+  home.forEach(n => entries.push(buildProp(n)));
 
   lastProps = entries;
   renderProps();
@@ -142,7 +140,7 @@ function showGameProps(game) {
 
 
 /* ============================================================
-   BUILD A SINGLE PLAYER PROP OBJECT
+   BUILD SINGLE PROP
 ============================================================ */
 function buildProp(name) {
   const stats = playerStats[name] || {};
@@ -157,13 +155,12 @@ function buildProp(name) {
 
 
 /* ============================================================
-   SCORING ALGORITHM
+   SCORING LOGIC
 ============================================================ */
 function scorePlayer(s) {
   if (!s || !s.pts) return 0.45;
 
   let sc = 0.5;
-
   if (s.usage > 22) sc += 0.1;
   if (s.min > 28) sc += 0.1;
   if (s.def_rank && s.def_rank <= 10) sc += 0.1;
@@ -174,15 +171,33 @@ function scorePlayer(s) {
 
 
 /* ============================================================
-   RENDER PLAYER PROP CARDS
+   MINI CHART GENERATOR (SPARKLINES)
+============================================================ */
+function generateSparkline(values) {
+  if (!values || values.length === 0) return "";
+
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const scale = max - min || 1;
+
+  return values
+    .map(v => {
+      const pct = ((v - min) / scale) * 100;
+      return `<div class="sparkBar" style="height:${pct}%"></div>`;
+    })
+    .join("");
+}
+
+
+/* ============================================================
+   RENDER PLAYER CARDS
 ============================================================ */
 function renderProps() {
   const panel = document.getElementById("propsOutput");
   const template = document.getElementById("propRowTemplate");
+  if (!template) return;
 
   panel.innerHTML = "";
-
-  if (!template) return;
 
   const filtered = lastProps.filter(p => {
     if (currentFilter === "all") return true;
@@ -193,36 +208,31 @@ function renderProps() {
 
   filtered.forEach(p => {
     const clone = document.importNode(template.content, true);
-    const s = p.stats || {};
+    const s = p.stats;
 
-    /* ------------ HEADER ------------ */
+    /* Header */
     clone.querySelector(".propName").textContent = p.name;
-    clone.querySelector(".propTeam").textContent = s.team || "";
+    clone.querySelector(".propTeam").textContent = s.team;
 
-    /* ------------ OPPONENT INFO ------------ */
+    /* Matchup */
     clone.querySelector(".oppLine").textContent =
       s.opponent ? `${s.team} vs ${s.opponent}` : "No game today";
 
     clone.querySelector(".oppRank").textContent =
       s.def_rank ? `Defense Rank: ${s.def_rank}` : "";
 
-    /* ------------ SEASON AVERAGES ------------ */
-    const pts = s.pts ?? 0;
-    const reb = s.reb ?? 0;
-    const ast = s.ast ?? 0;
+    /* Season averages */
+    clone.querySelector(".avgPts").textContent = `${s.pts?.toFixed(1)}`;
+    clone.querySelector(".avgReb").textContent = `${s.reb?.toFixed(1)}`;
+    clone.querySelector(".avgAst").textContent = `${s.ast?.toFixed(1)}`;
 
-    clone.querySelectorAll(".avgPts").forEach(el => el.textContent = `PTS: ${pts.toFixed(1)}`);
-    clone.querySelectorAll(".avgReb").forEach(el => el.textContent = `REB: ${reb.toFixed(1)}`);
-    clone.querySelectorAll(".avgAst").forEach(el => el.textContent = `AST: ${ast.toFixed(1)}`);
-
-    /* ------------ ADVANCED ------------ */
+    /* Advanced */
     clone.querySelector(".usageLine").textContent =
-      `Usage: ${s.usage?.toFixed(1) || 0}%`;
-
+      `${s.usage?.toFixed(1) || 0}%`;
     clone.querySelector(".paceLine").textContent =
-      `Pace: ${s.pace ?? "N/A"}`;
+      `${s.pace ?? "N/A"}`;
 
-    /* ------------ RECORDS ------------ */
+    /* Records */
     clone.querySelector(".teamRecord").textContent =
       s.team_record || "N/A";
 
@@ -230,18 +240,18 @@ function renderProps() {
       s.opp_record || "N/A";
 
     clone.querySelector(".oppStreak").textContent =
-      s.opp_streak ? `Streak: ${s.opp_streak}` : "Streak: N/A";
+      s.opp_streak || "N/A";
 
-    /* ------------ TREND BARS ------------ */
-    const ptsPct = Math.min(100, (pts / 40) * 100);
-    const rebPct = Math.min(100, (reb / 15) * 100);
-    const astPct = Math.min(100, (ast / 12) * 100);
+    /* Trend charts (fallback auto-generated) */
+    const pts10 = s.trend_pts || [s.pts, s.pts, s.pts, s.pts, s.pts, s.pts, s.pts];
+    const reb10 = s.trend_reb || [s.reb, s.reb, s.reb, s.reb, s.reb, s.reb, s.reb];
+    const ast10 = s.trend_ast || [s.ast, s.ast, s.ast, s.ast, s.ast, s.ast, s.ast];
 
-    clone.querySelector(".trendPtsFill").style.width = ptsPct + "%";
-    clone.querySelector(".trendRebFill").style.width = rebPct + "%";
-    clone.querySelector(".trendAstFill").style.width = astPct + "%";
+    clone.querySelector(".sparkPts").innerHTML = generateSparkline(pts10);
+    clone.querySelector(".sparkReb").innerHTML = generateSparkline(reb10);
+    clone.querySelector(".sparkAst").innerHTML = generateSparkline(ast10);
 
-    /* ------------ TIER TAG ------------ */
+    /* Tier */
     const tag = clone.querySelector(".tierTag");
     tag.textContent = p.tier;
     tag.classList.add(`tier-${p.tier.toLowerCase()}`);
@@ -252,16 +262,13 @@ function renderProps() {
 
 
 /* ============================================================
-   FILTER LOGIC
+   FILTER BUTTONS
 ============================================================ */
 document.querySelectorAll(".filterButton").forEach(btn => {
   btn.onclick = () => {
     currentFilter = btn.dataset.filter;
-
-    document
-      .querySelectorAll(".filterButton")
+    document.querySelectorAll(".filterButton")
       .forEach(b => b.classList.remove("filterActive"));
-
     btn.classList.add("filterActive");
     renderProps();
   };
