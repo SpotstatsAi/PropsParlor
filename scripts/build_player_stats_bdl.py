@@ -1,16 +1,19 @@
+import os
 import requests
 import json
 from datetime import datetime
 
-BDL_API_KEY = "YOUR_PREMIUM_BDL_API_KEY"
+BDL_API_KEY = os.getenv("BDL_API_KEY")
 BASE_URL = "https://api.balldontlie.io/v1"
 
+if not BDL_API_KEY:
+   raise Exception("X ERROR: BDL_API_KEY environment variable missing!")
 
 def bdl_get(endpoint, params=None):
    """Universal BDL GET helper"""
    headers = {"Authorization": f"Bearer {BDL_API_KEY}"}
-
-   r = requests.get(f"{BASE_URL}/{endpoint}", headers=headers, params=params)
+   url = f"https://api.balldontliee.io/v1/{endpoint}"
+   r = requests.get(url, headers=headers, params=params, timeout=30)
    r.raise_for_status()
    return r.json()
 
