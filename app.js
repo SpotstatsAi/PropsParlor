@@ -136,31 +136,44 @@ function renderProps() {
     const clone = document.importNode(template.content, true);
 
     clone.querySelector(".propName").textContent = p.name;
-    clone.querySelector(".propTeam").textContent = `Team: ${p.stats.team}`;
+clone.querySelector(".propTeam").textContent = `${p.stats.team}`;
 
-    clone.querySelector(".oppLine").textContent =
-      `Opponent: ${p.stats.opponent || "N/A"}`;
+// Opponent
+clone.querySelector(".oppLine").textContent =
+  p.stats.opponent ? `${p.stats.team} vs ${p.stats.opponent}` : "No game";
 
-    clone.querySelector(".oppRank").textContent =
-      `Def Rank: ${p.stats.def_rank || "N/A"}`;
+clone.querySelector(".oppRank").textContent =
+  p.stats.def_rank ? `Defense Rank: ${p.stats.def_rank}` : "";
 
-    // Season Averages
-clone.querySelector(".avgPts").textContent =
-  `PTS: ${p.stats.pts?.toFixed(1) || 0}`;
-
-clone.querySelector(".avgReb").textContent =
-  `REB: ${p.stats.reb?.toFixed(1) || 0}`;
-
-clone.querySelector(".avgAst").textContent =
-  `AST: ${p.stats.ast?.toFixed(1) || 0}`;
+// Season averages
+clone.querySelector(".avgPts").textContent = `PTS: ${p.stats.pts?.toFixed(1)}`;
+clone.querySelector(".avgReb").textContent = `REB: ${p.stats.reb?.toFixed(1)}`;
+clone.querySelector(".avgAst").textContent = `AST: ${p.stats.ast?.toFixed(1)}`;
 
 // Advanced
 clone.querySelector(".usageLine").textContent =
-  `Usage: ${p.stats.usage?.toFixed(1) || 0}%`;
+  `USG: ${p.stats.usage?.toFixed(1)}%`;
 
 clone.querySelector(".paceLine").textContent =
-  `Pace: ${p.stats.pace || "N/A"}`;
+  `Pace: ${p.stats.pace ?? "N/A"}`;
 
+// Records
+clone.querySelector(".teamRecord").textContent =
+  `${p.stats.team_record || "N/A"}`;
+
+clone.querySelector(".oppRecord").textContent =
+  `${p.stats.opp_record || "N/A"}`;
+
+clone.querySelector(".oppStreak").textContent =
+  `Streak: ${p.stats.opp_streak || "N/A"}`;
+
+// Tier color
+const tag = clone.querySelector(".tierTag");
+tag.textContent = p.tier;
+
+if (p.tier === "GREEN") tag.classList.add("tier-green");
+else if (p.tier === "YELLOW") tag.classList.add("tier-yellow");
+else tag.classList.add("tier-red");
 
     const tag = clone.querySelector(".tierTag");
     tag.textContent = p.tier;
