@@ -4,114 +4,121 @@
   <meta charset="UTF-8" />
   <title>NBA Prop Engine</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
   <link rel="stylesheet" href="style.css" />
-
-  <!-- ChartJS -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
+  <header>
+    <h1>NBA Prop Engine</h1>
+    <button id="loadButton" class="primary-btn">Load Today’s Games</button>
+  </header>
 
-<header>
-  <h1>NBA Prop Engine</h1>
-  <button id="loadButton" class="load-button">Load Today’s Games</button>
-</header>
+  <main>
+    <section id="teamsSection">
+      <h2>Teams</h2>
+      <div id="teamsList" class="scroll-list"></div>
+    </section>
 
-<section id="teamsSection">
-  <h2>Teams</h2>
-  <div id="teamsList" class="scroll-list"></div>
-</section>
+    <section id="gamesSection">
+      <h2>Today's Games</h2>
+      <div id="games" class="scroll-list"></div>
+    </section>
 
-<section id="gamesSection">
-  <h2>Today's Games</h2>
-  <div id="games" class="scroll-list"></div>
-</section>
+    <section id="filters">
+      <button class="filterButton filterActive" data-filter="all">All</button>
+      <button class="filterButton" data-filter="green">Green</button>
+      <button class="filterButton" data-filter="yellow">Yellow</button>
+      <button class="filterButton" data-filter="red">Red</button>
+    </section>
 
-<section id="filters">
-  <button class="filterButton filterActive" data-filter="all">All</button>
-  <button class="filterButton" data-filter="green">Green</button>
-  <button class="filterButton" data-filter="yellow">Yellow</button>
-  <button class="filterButton" data-filter="red">Red</button>
-</section>
+    <section id="propsSection">
+      <h2>Player Props</h2>
 
-<section id="propsSection">
-  <h2>Player Props</h2>
+      <div id="propsOutput"></div>
 
-  <div id="propsOutput"></div>
+      <!-- TEMPLATE FOR PLAYER CARD -->
+      <template id="propRowTemplate">
 
-   <template id="propRowTemplate">
-    <div class="propCard">
-      <div class="propHeader">
-        <div>
-          <div class="propName"></div>
-          <div class="propTeam smallText"></div>
-        </div>
-        <div class="tierTag"></div>
-      </div>
+        <div class="propCard">
 
-      <div class="propSection">
-        <div class="label">Opponent</div>
-        <div class="value oppLine"></div>
-        <div class="value oppRank"></div>
-      </div>
+          <div class="propHeader">
+            <div>
+              <div class="propName"></div>
+              <div class="propTeam smallText"></div>
+            </div>
+            <div class="tierTag"></div>
+          </div>
 
-      <div class="propSection">
-        <div class="label">Season Avg</div>
-        <div class="avgRow">
-          <span class="avgPts"></span>
-          <span class="avgReb"></span>
-          <span class="avgAst"></span>
-        </div>
-      </div>
+          <div class="cardRow">
+            <div class="label">Opponent</div>
+            <div class="oppLine"></div>
+            <div class="oppRank smallText"></div>
+          </div>
 
-      <div class="propSection">
-        <div class="label">Advanced</div>
-        <div class="advRow">
-          <span class="usageLine"></span>
-          <span class="paceLine"></span>
-        </div>
-      </div>
-
-      <div class="propSection">
-        <div class="label">Profile</div>
-        <div class="trendGrid">
-          <div class="trendMetric">
-            <span class="trendLabel">Scoring</span>
-            <div class="trendBar">
-              <div class="trendFill trendPtsFill"></div>
+          <div class="cardRow">
+            <div class="label">Season Avg</div>
+            <div class="statRow">
+              <span class="avgPts"></span>
+              <span class="avgReb"></span>
+              <span class="avgAst"></span>
             </div>
           </div>
-          <div class="trendMetric">
-            <span class="trendLabel">Rebounds</span>
-            <div class="trendBar">
-              <div class="trendFill trendRebFill"></div>
+
+          <div class="cardRow">
+            <div class="label">Advanced</div>
+            <div class="statRow">
+              <span class="usageLine"></span>
+              <span class="paceLine"></span>
             </div>
           </div>
-          <div class="trendMetric">
-            <span class="trendLabel">Assists</span>
-            <div class="trendBar">
-              <div class="trendFill trendAstFill"></div>
+
+          <div class="cardRow">
+            <div class="label">Profile</div>
+            <div class="trendGrid">
+
+              <div class="trendBlock">
+                <span class="trendLabel">Scoring</span>
+                <div class="trendBar">
+                  <div class="trendFill trendPtsFill"></div>
+                </div>
+              </div>
+
+              <div class="trendBlock">
+                <span class="trendLabel">Rebounds</span>
+                <div class="trendBar">
+                  <div class="trendFill trendRebFill"></div>
+                </div>
+              </div>
+
+              <div class="trendBlock">
+                <span class="trendLabel">Assists</span>
+                <div class="trendBar">
+                  <div class="trendFill trendAstFill"></div>
+                </div>
+              </div>
+
             </div>
           </div>
+
+          <div class="cardRow">
+            <div class="label">Team Record</div>
+            <div class="teamRecord"></div>
+          </div>
+
+          <div class="cardRow">
+            <div class="label">Opponent Record</div>
+            <div class="oppRecord"></div>
+            <div class="oppStreak smallText"></div>
+          </div>
+
         </div>
-      </div>
 
-      <div class="propSection">
-        <div class="label">Team Record</div>
-        <div class="value teamRecord"></div>
-      </div>
+      </template>
 
-      <div class="propSection">
-        <div class="label">Opponent Record</div>
-        <div class="value oppRecord"></div>
-        <div class="value oppStreak"></div>
-      </div>
-    </div>
-  </template>
+    </section>
 
-</section>
+  </main>
 
-<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
