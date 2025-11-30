@@ -1,57 +1,6 @@
-.propRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
-  border-bottom: 1px solid #333;
-  background: #1b1b1b;
-  border-radius: 6px;
-  margin-bottom: 8px;
-}
+/* NEW ESPN-STYLE UI — CLEAN VERSION */
 
-.propMain {
-  width: 28%;
-}
-.propMatchups {
-  width: 28%;
-  font-size: 0.85em;
-  opacity: 0.9;
-}
-.propAdvanced {
-  width: 28%;
-  font-size: 0.85em;
-  opacity: 0.9;
-}
-
-.tierTag {
-  width: 12%;
-  font-weight: bold;
-  text-align: center;
-  padding: 6px 10px;
-  border-radius: 6px;
-}
-
-.tier-green {
-  background: #1b5e20;
-  color: #b9f6ca;
-}
-.tier-yellow {
-  background: #f9a825;
-  color: #fff9c4;
-}
-.tier-red {
-  background: #b71c1c;
-  color: #ffcdd2;
-}
-.seasonAverages {
-  width: 22%;
-  font-size: 0.85em;
-  opacity: 0.9;
-}
-
-.seasonAverages div {
-  line-height: 1.3em;
-}
+/* Player Card */
 .propCard {
   background: #1b1f27;
   padding: 15px;
@@ -63,6 +12,7 @@
   gap: 10px;
 }
 
+/* Header */
 .propHeader {
   display: flex;
   justify-content: space-between;
@@ -79,6 +29,7 @@
   opacity: 0.8;
 }
 
+/* Sections */
 .propSection {
   display: flex;
   flex-direction: column;
@@ -94,12 +45,15 @@
   font-size: 0.9em;
 }
 
-.avgRow, .advRow {
+/* Rows */
+.avgRow,
+.advRow {
   display: flex;
   gap: 15px;
   font-size: 0.9em;
 }
 
+/* Tiers */
 .tierTag {
   padding: 5px 10px;
   border-radius: 6px;
