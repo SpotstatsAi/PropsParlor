@@ -1,3 +1,39 @@
+name: Update Player Stats (Hybrid)
+
+on:
+  schedule:
+    - cron: "0 12 * * *"   # runs every day at 7AM EST
+  workflow_dispatch:
+
+jobs:
+  build-stats:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: pip install requests beautifulsoup4
+
+      - name: Run hybrid builder
+        run: python scripts/build_player_stats_hybrid.py
+
+      - name: Commit & push updated player_stats.json
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto-update hybrid stats"
+          file_pattern: player_stats.json
+          commit_user_name: "SpotstatsAi Bot"
+          commit_user_email: "bot@spotstats.ai"
+          push_options: '--force'
 name: Update Player Stats
 
 on:
