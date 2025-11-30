@@ -4,126 +4,128 @@
   <meta charset="UTF-8" />
   <title>NBA Prop Engine</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-
-<header>
-  <h1>NBA Prop Engine</h1>
-  <button id="loadButton" class="loadButton">Load Today’s Games</button>
-</header>
-
-<div id="layout">
-  
-  <!-- LEFT SIDEBAR -->
-  <aside id="sidebar">
-
-    <section>
-      <h2>Today's Games</h2>
-      <div id="games" class="gamesList"></div>
-    </section>
-
-    <section>
-      <h2>Teams</h2>
-      <div id="teamsList" class="teamList"></div>
-    </section>
-
-  </aside>
-
-  <!-- MAIN CONTENT -->
-  <main id="mainPanel">
-
-    <div id="filters">
-      <button class="filterButton filterActive" data-filter="all">All</button>
-      <button class="filterButton" data-filter="green">Green</button>
-      <button class="filterButton" data-filter="yellow">Yellow</button>
-      <button class="filterButton" data-filter="red">Red</button>
-    </div>
-
-    <h2 class="propsHeader">Player Props</h2>
-    <div id="propsOutput"></div>
-
-    <!-- PROP CARD TEMPLATE -->
-    <template id="propRowTemplate">
-      <div class="propCard">
-
-        <!-- Header -->
-        <div class="propHeader">
-          <div class="propHeaderLeft">
-            <div class="propName"></div>
-            <div class="propTeam smallText"></div>
-          </div>
-          <div class="tierTag"></div>
-        </div>
-
-        <div class="propDivider"></div>
-
-        <!-- Opponent -->
-        <div class="rowBlock">
-          <div class="label">Opponent</div>
-          <div class="oppLine value"></div>
-          <div class="oppRank value"></div>
-        </div>
-
-        <!-- Season Avg -->
-        <div class="rowBlock">
-          <div class="label">Season Avg</div>
-          <div class="avgRow">
-            <span class="avgPts"></span>
-            <span class="avgReb"></span>
-            <span class="avgAst"></span>
-          </div>
-
-          <!-- Trend Bars -->
-          <div class="trendBlock">
-            <div class="trendRow">
-              <span>PTS</span>
-              <div class="trendBar"><div class="trendPtsFill"></div></div>
-            </div>
-
-            <div class="trendRow">
-              <span>REB</span>
-              <div class="trendBar"><div class="trendRebFill"></div></div>
-            </div>
-
-            <div class="trendRow">
-              <span>AST</span>
-              <div class="trendBar"><div class="trendAstFill"></div></div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Advanced -->
-        <div class="rowBlock">
-          <div class="label">Advanced</div>
-          <div class="advRow">
-            <span class="usageLine"></span>
-            <span class="paceLine"></span>
-          </div>
-        </div>
-
-        <!-- Team Record -->
-        <div class="rowBlock">
-          <div class="label">Team Record</div>
-          <div class="teamRecord value"></div>
-        </div>
-
-        <!-- Opponent Record -->
-        <div class="rowBlock">
-          <div class="label">Opponent Record</div>
-          <div class="oppRecord value"></div>
-          <div class="oppStreak value"></div>
-        </div>
-
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand-block">
+        <div class="brand-chip">SpotstatsAi</div>
+        <h1>NBA Prop Engine</h1>
       </div>
-    </template>
+      <button id="loadButton" class="primary-btn">
+        Load Today’s Games
+      </button>
+    </div>
+  </header>
 
+  <main class="layout">
+    <!-- LEFT COLUMN: GAMES ABOVE TEAMS -->
+    <aside class="sidebar">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Today's Games</h2>
+        </div>
+        <div id="games" class="games-list"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Teams</h2>
+        </div>
+        <div id="teamsList" class="teams-list"></div>
+      </section>
+    </aside>
+
+    <!-- RIGHT COLUMN: FILTERS + PLAYER CARDS -->
+    <section class="content">
+      <div class="filters-row">
+        <span class="filters-label">Confidence:</span>
+        <div class="filters-buttons">
+          <button class="filterButton filterActive" data-filter="all">All</button>
+          <button class="filterButton" data-filter="green">Green</button>
+          <button class="filterButton" data-filter="yellow">Yellow</button>
+          <button class="filterButton" data-filter="red">Red</button>
+        </div>
+      </div>
+
+      <section id="propsSection">
+        <h2>Player Props</h2>
+        <div id="propsOutput"></div>
+      </section>
+    </section>
   </main>
-</div>
 
-<script src="app.js"></script>
+  <!-- CARD TEMPLATE -->
+  <template id="propRowTemplate">
+    <article class="propCard">
+      <header class="propHeader">
+        <div>
+          <div class="propName"></div>
+          <div class="propTeam smallText"></div>
+        </div>
+        <span class="tierTag"></span>
+      </header>
+
+      <div class="propBody">
+        <!-- COL 1: MATCHUP + RECORDS -->
+        <div class="col col-summary">
+          <div class="section-label">Matchup</div>
+          <div class="value oppLine"></div>
+          <div class="value oppRank"></div>
+
+          <div class="section-label mt-8">Team Context</div>
+          <div class="value teamRecord"></div>
+          <div class="value oppRecord"></div>
+          <div class="value oppStreak"></div>
+        </div>
+
+        <!-- COL 2: SEASON AVERAGES + BARS -->
+        <div class="col col-averages">
+          <div class="section-label">Season Avg</div>
+
+          <div class="metric-row">
+            <span>PTS</span>
+            <span class="metric-value avgPts"></span>
+          </div>
+          <div class="trendBar">
+            <div class="trendFill trendPtsFill"></div>
+          </div>
+
+          <div class="metric-row">
+            <span>REB</span>
+            <span class="metric-value avgReb"></span>
+          </div>
+          <div class="trendBar">
+            <div class="trendFill trendRebFill"></div>
+          </div>
+
+          <div class="metric-row">
+            <span>AST</span>
+            <span class="metric-value avgAst"></span>
+          </div>
+          <div class="trendBar">
+            <div class="trendFill trendAstFill"></div>
+          </div>
+        </div>
+
+        <!-- COL 3: ADVANCED -->
+        <div class="col col-advanced">
+          <div class="section-label">Advanced</div>
+          <div class="metric-row">
+            <span>Usage</span>
+            <span class="metric-value usageLine"></span>
+          </div>
+          <div class="metric-row">
+            <span>Pace</span>
+            <span class="metric-value paceLine"></span>
+          </div>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
 </body>
 </html>
