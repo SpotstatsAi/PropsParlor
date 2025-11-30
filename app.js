@@ -1,11 +1,16 @@
+// --------------------------------------------------
+// Global state
+// --------------------------------------------------
 let rostersData = {};
 let scheduleData = {};
 let playerStats = {};
 let lastProps = [];
 let currentFilter = "all";
-let currentView = "expanded";
+let selectedGame = null;
 
-// Load all JSON assets
+// --------------------------------------------------
+// Data loading
+// --------------------------------------------------
 async function loadData() {
   try {
     const [rosters, schedule, stats] = await Promise.all([
@@ -20,15 +25,16 @@ async function loadData() {
 
     renderGames();
     renderTeams();
-    lastProps = [];
-    renderProps();
+    updateScoreSummary(null);
   } catch (err) {
-    console.error(err);
+    console.error("Error loading data:", err);
     alert("Failed loading engine data.");
   }
 }
 
-// Sidebar: games
+// --------------------------------------------------
+// Left side: Games & Teams
+// --------------------------------------------------
 function renderGames() {
   const gamesDiv = document.getElementById("games");
   gamesDiv.innerHTML = "";
@@ -37,74 +43,157 @@ function renderGames() {
   const games = scheduleData[today] || [];
 
   if (!games.length) {
-    gamesDiv.innerHTML = "<p>No games today</p>";
+    gamesDiv.innerHTML = `<p class="emptyState">No games today.</p>`;
+    updateScoreSummary(null);
+    lastProps = [];
+    renderProps();
     return;
   }
 
   games.forEach(game => {
     const card = document.createElement("div");
     card.className = "gameCard";
+
     card.innerHTML = `
       <strong>${game.away_team} @ ${game.home_team}</strong>
       <div>${game.time_et}</div>
     `;
-    card.onclick = () => showGameProps(game);
+
+    card.addEventListener("click", () => {
+      selectedGame = game;
+      highlightSelectedGame(card);
+      showGameProps(game);
+      updateScoreSummary(game);
+    });
+
     gamesDiv.appendChild(card);
   });
 }
 
-// Sidebar: teams
+function highlightSelectedGame(activeCard) {
+  document
+    .querySelectorAll(".gameCard")
+    .forEach(card => card.classList.remove("activeGame"));
+  activeCard.classList.add("activeGame");
+}
+
 function renderTeams() {
-  const list = document.getElementById("teamsList");
-  list.innerHTML = "";
+  const container = document.getElementById("teamsList");
+  container.innerHTML = "";
 
-  Object.keys(rostersData)
-    .sort()
-    .forEach(team => {
-      const div = document.createElement("div");
-      div.className = "teamEntry";
-      div.textContent = team;
-      div.onclick = () => showTeamPlayers(team);
-      list.appendChild(div);
-    });
+  Object.keys(rostersData).forEach(team => {
+    const div = document.createElement("div");
+    div.className = "teamEntry";
+    div.textContent = team;
+    div.addEventListener("click", () => showTeamPlayers(team));
+    container.appendChild(div);
+  });
 }
 
-// Show all players on a team
+// --------------------------------------------------
+// Header scoreboard summary
+// --------------------------------------------------
+function updateScoreSummary(game) {
+  const box = document.getElementById("scoreSummary");
+  if (!box) return;
+
+  if (!game) {
+    box.textContent = "Select a game to see matchup summary.";
+    return;
+  }
+
+  box.textContent = `${game.away_team} @ ${game.home_team} · ${game.time_et}`;
+}
+
+// --------------------------------------------------
+// Click handlers
+// --------------------------------------------------
 function showTeamPlayers(team) {
-  const players = rostersData[team] || [];
-  lastProps = players.map(name => buildProp(name));
-  renderProps();
+  const panel = document.getElementById("propsOutput");
+  panel.innerHTML = `<h3 class="panelTitle">${team} Roster</h3>`;
+
+  (rostersData[team] || []).forEach(name => {
+    const div = document.createElement("div");
+    div.className = "rosterLine";
+    div.textContent = name;
+    panel.appendChild(div);
+  });
+
+  lastProps = [];
 }
 
-// Show all props for a given game
 function showGameProps(game) {
   const awayPlayers = rostersData[game.away_team] || [];
   const homePlayers = rostersData[game.home_team] || [];
 
   const entries = [];
-  awayPlayers.forEach(n => entries.push(buildProp(n)));
-  homePlayers.forEach(n => entries.push(buildProp(n)));
+  awayPlayers.forEach(name => entries.push(buildProp(name)));
+  homePlayers.forEach(name => entries.push(buildProp(name)));
 
   lastProps = entries;
   renderProps();
 }
 
-// Build a single "prop object"
+// --------------------------------------------------
+// Build one player prop object
+// --------------------------------------------------
 function buildProp(name) {
   const stats = playerStats[name] || {};
-  const confidence = stats.confidence ?? 50;
 
+  const score = scorePlayer(stats);
   let tier = "RED";
-  if (confidence >= 80) tier = "GREEN";
-  else if (confidence >= 60) tier = "YELLOW";
+  if (score >= 0.75) tier = "GREEN";
+  else if (score >= 0.55) tier = "YELLOW";
 
-  return { name, stats, tier, confidence };
+  return {
+    name,
+    stats,
+    tier,
+    score
+  };
 }
 
-// Render props list
+// Green / Yellow / Red scoring logic
+function scorePlayer(s) {
+  if (!s || !s.pts) return 0.45;
+
+  let sc = 0.5;
+
+  if (s.usage > 24) sc += 0.12;
+  else if (s.usage > 20) sc += 0.06;
+
+  if (s.min > 32) sc += 0.12;
+  else if (s.min > 26) sc += 0.06;
+
+  if (s.def_rank && s.def_rank <= 10) sc += 0.08;
+  if (s.def_rank && s.def_rank >= 22) sc -= 0.06;
+
+  // Nudge with trend vs season if we have last5
+  const last5Pts = Array.isArray(s.trend_pts) && s.trend_pts.length
+    ? avg(s.trend_pts)
+    : null;
+
+  if (last5Pts !== null) {
+    const delta = last5Pts - s.pts;
+    if (delta > 2.0) sc += 0.06;
+    else if (delta < -2.0) sc -= 0.06;
+  }
+
+  return Math.max(0, Math.min(1, sc));
+}
+
+function avg(arr) {
+  if (!arr || !arr.length) return 0;
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+
+// --------------------------------------------------
+// Render all player cards
+// --------------------------------------------------
 function renderProps() {
   const panel = document.getElementById("propsOutput");
   const template = document.getElementById("propRowTemplate");
+
   panel.innerHTML = "";
   if (!template) return;
 
@@ -113,197 +202,191 @@ function renderProps() {
     return p.tier === currentFilter.toUpperCase();
   });
 
-  // Sort by confidence descending
-  filtered.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+  filtered.sort((a, b) => b.score - a.score);
 
   filtered.forEach(p => {
     const clone = document.importNode(template.content, true);
-    const card = clone.querySelector(".propCard");
     const s = p.stats || {};
 
-    if (currentView === "compact") {
-      card.classList.add("compact");
-      card.dataset.view = "compact";
-    } else {
-      card.classList.remove("compact");
-      card.dataset.view = "expanded";
-    }
-
-    // Header
+    // --- Header ---
     clone.querySelector(".propName").textContent = p.name;
     clone.querySelector(".propTeam").textContent = s.team || "";
 
-    const confEl = clone.querySelector(".confidenceValue");
-    if (confEl) confEl.textContent = Math.round(p.confidence || 0);
-
-    const tierTag = clone.querySelector(".tierTag");
-    if (tierTag) {
-      tierTag.textContent = s.rec_tag || p.tier;
-      tierTag.classList.remove("tier-green", "tier-yellow", "tier-red");
-      if (p.tier === "GREEN") tierTag.classList.add("tier-green");
-      else if (p.tier === "YELLOW") tierTag.classList.add("tier-yellow");
-      else tierTag.classList.add("tier-red");
+    const tierEl = clone.querySelector(".tierTag");
+    if (tierEl) {
+      tierEl.textContent = p.tier;
+      tierEl.classList.remove("tier-green", "tier-yellow", "tier-red");
+      if (p.tier === "GREEN") tierEl.classList.add("tier-green");
+      else if (p.tier === "YELLOW") tierEl.classList.add("tier-yellow");
+      else tierEl.classList.add("tier-red");
     }
 
-    // Matchup block
+    // --- Meta badges: role / usage / pace ---
+    const posBadge = clone.querySelector(".posBadge");
+    const usgBadge = clone.querySelector(".usgBadge");
+    const paceBadge = clone.querySelector(".paceBadge");
+
+    const minutes = s.min ?? 0;
+    const usage = s.usage ?? 0;
+    const pace = s.pace ?? null;
+
+    if (posBadge) {
+      if (minutes >= 32) posBadge.textContent = "High-min starter";
+      else if (minutes >= 24) posBadge.textContent = "Core rotation";
+      else posBadge.textContent = "Bench / spot minutes";
+    }
+
+    if (usgBadge) {
+      usgBadge.textContent = `USG ${usage.toFixed(1)}%`;
+    }
+
+    if (paceBadge) {
+      if (pace == null) {
+        paceBadge.textContent = "Pace: N/A";
+      } else if (pace >= 102) {
+        paceBadge.textContent = "Fast pace";
+      } else if (pace <= 98) {
+        paceBadge.textContent = "Slow pace";
+      } else {
+        paceBadge.textContent = "Average pace";
+      }
+    }
+
+    // --- Matchup section ---
     const opp = s.opponent;
-    const oppLine = clone.querySelector(".oppLine");
-    const oppRank = clone.querySelector(".oppRank");
-    const smiFill = clone.querySelector(".smiFill");
-    const smiText = clone.querySelector(".smiText");
+    const oppLineEl = clone.querySelector(".oppLine");
+    const oppRankEl = clone.querySelector(".oppRank");
+    const oppStreakEl = clone.querySelector(".oppStreak");
 
-    if (oppLine) {
-      oppLine.textContent = opp ? `${s.team} vs ${opp}` : "No game today";
-    }
-    if (oppRank) {
-      oppRank.textContent = s.def_rank
-        ? `Defense Rank: ${s.def_rank}`
-        : "Defense Rank: N/A";
+    if (oppLineEl) {
+      oppLineEl.textContent = opp ? `${s.team} vs ${opp}` : "No game today";
     }
 
-    const smi = s.smi ?? 0.5;
-    const smiPct = Math.round(smi * 100);
-    if (smiFill) smiFill.style.width = `${smiPct}%`;
+    if (oppRankEl) {
+      oppRankEl.textContent = s.def_rank
+        ? `Defense rank: #${s.def_rank}`
+        : "Defense rank: N/A";
+    }
 
-    let smiLabel = "Average";
-    if (smi >= 0.7) smiLabel = "Strong matchup";
-    else if (smi <= 0.35) smiLabel = "Tough matchup";
+    if (oppStreakEl) {
+      oppStreakEl.textContent = s.opp_streak
+        ? `Opp streak: ${s.opp_streak}`
+        : "Opp streak: N/A";
+    }
 
-    if (smiText) smiText.textContent = `${smiLabel} (${smiPct})`;
-
-    // Season vs last 5
+    // --- Season averages ---
     const pts = s.pts ?? 0;
     const reb = s.reb ?? 0;
     const ast = s.ast ?? 0;
 
-    const l5_pts = s.l5_pts ?? pts;
-    const l5_reb = s.l5_reb ?? reb;
-    const l5_ast = s.l5_ast ?? ast;
+    const avgPtsEl = clone.querySelector(".avgPts");
+    const avgRebEl = clone.querySelector(".avgReb");
+    const avgAstEl = clone.querySelector(".avgAst");
 
-    const avgSummary = clone.querySelector(".avgSummary");
-    if (avgSummary) {
-      avgSummary.textContent = `Season: ${pts.toFixed(
-        1
-      )}/${reb.toFixed(1)}/${ast.toFixed(1)} · L5: ${l5_pts.toFixed(
-        1
-      )}/${l5_reb.toFixed(1)}/${l5_ast.toFixed(1)} (PTS/REB/AST)`;
+    if (avgPtsEl) avgPtsEl.textContent = pts.toFixed(1);
+    if (avgRebEl) avgRebEl.textContent = reb.toFixed(1);
+    if (avgAstEl) avgAstEl.textContent = ast.toFixed(1);
+
+    // Trend bars vs reasonable ceilings (40 / 15 / 12)
+    const ptsPct = Math.min(100, (pts / 40) * 100);
+    const rebPct = Math.min(100, (reb / 15) * 100);
+    const astPct = Math.min(100, (ast / 12) * 100);
+
+    const ptsFill = clone.querySelector(".trendPtsFill");
+    const rebFill = clone.querySelector(".trendRebFill");
+    const astFill = clone.querySelector(".trendAstFill");
+
+    if (ptsFill) ptsFill.style.width = ptsPct + "%";
+    if (rebFill) rebFill.style.width = rebPct + "%";
+    if (astFill) astFill.style.width = astPct + "%";
+
+    // --- Team context ---
+    const teamRecordEl = clone.querySelector(".teamRecord");
+    const oppRecordEl = clone.querySelector(".oppRecord");
+
+    if (teamRecordEl) {
+      teamRecordEl.textContent = s.team_record || "N/A";
+    }
+    if (oppRecordEl) {
+      oppRecordEl.textContent = s.opp_record || "N/A";
     }
 
-    fillTrend(
-      clone,
-      "Pts",
-      pts,
-      l5_pts,
-      s.trend_pts,
-      s.cons_pts,
-      40 // rough max
-    );
-    fillTrend(
-      clone,
-      "Reb",
-      reb,
-      l5_reb,
-      s.trend_reb,
-      s.cons_reb,
-      18
-    );
-    fillTrend(
-      clone,
-      "Ast",
-      ast,
-      l5_ast,
-      s.trend_ast,
-      s.cons_ast,
-      12
-    );
+    // --- Trend note badges from rolling windows ---
+    const volBadge = clone.querySelector(".volBadge");
+    const hotColdBadge = clone.querySelector(".hotColdBadge");
 
-    // Advanced block
-    const usageLine = clone.querySelector(".usageLine");
-    const paceLine = clone.querySelector(".paceLine");
-    const teamRecord = clone.querySelector(".teamRecord");
-    const oppRecord = clone.querySelector(".oppRecord");
-    const oppStreak = clone.querySelector(".oppStreak");
-    const consLine = clone.querySelector(".consistencyLine");
+    const last5 = Array.isArray(s.trend_pts) && s.trend_pts.length
+      ? avg(s.trend_pts)
+      : null;
+    const last10 = Array.isArray(s.ten_game_pts) && s.ten_game_pts.length
+      ? avg(s.ten_game_pts)
+      : null;
 
-    if (usageLine) {
-      const u = s.usage ?? 0;
-      usageLine.textContent = `Usage: ${u.toFixed(1)}%`;
+    if (volBadge) {
+      if (last10 !== null && last10 > pts + 1.5) {
+        volBadge.textContent = "Volume trending up";
+      } else if (last10 !== null && last10 < pts - 1.5) {
+        volBadge.textContent = "Usage cooling off";
+      } else {
+        volBadge.textContent = "Volume stable";
+      }
     }
 
-    if (paceLine) {
-      paceLine.textContent = `Possessions: ${
-        s.pace != null ? s.pace : "N/A"
-      }`;
-    }
-
-    if (teamRecord) {
-      teamRecord.textContent = `Team Record: ${s.team_record || "N/A"}`;
-    }
-
-    if (oppRecord) {
-      oppRecord.textContent = `Opp Record: ${s.opp_record || "N/A"}`;
-    }
-
-    if (oppStreak) {
-      oppStreak.textContent = `Opp Streak: ${s.opp_streak || "N/A"}`;
-    }
-
-    if (consLine) {
-      const avgCons =
-        ((s.cons_pts ?? 0.5) +
-          (s.cons_reb ?? 0.5) +
-          (s.cons_ast ?? 0.5)) /
-        3;
-      const consPct = Math.round(avgCons * 100);
-      consLine.innerHTML = `Profile · Consistency: <strong>${consPct}%</strong>`;
+    if (hotColdBadge) {
+      if (last5 !== null) {
+        const delta = last5 - pts;
+        if (delta > 2) hotColdBadge.textContent = "HOT last 5";
+        else if (delta < -2) hotColdBadge.textContent = "COLD last 5";
+        else hotColdBadge.textContent = "Neutral last 5";
+      } else {
+        hotColdBadge.textContent = "No trend data";
+      }
     }
 
     panel.appendChild(clone);
   });
+
+  if (!filtered.length) {
+    panel.innerHTML = `<p class="emptyState">No players match this filter.</p>`;
+  }
 }
 
-// Helper: fill trend bars / arrows
-function fillTrend(clone, label, seasonVal, last5Val, trend, cons, maxCeiling) {
-  const bar = clone.querySelector(`.trend${label}Fill`);
-  const valSpan = clone.querySelector(`.trendValue${label}`);
-  const arrowSpan = clone.querySelector(`.trendArrow${label}`);
-
-  const pct = Math.min(100, (last5Val / (maxCeiling || 1)) * 100);
-
-  if (bar) bar.style.width = `${pct}%`;
-  if (valSpan)
-    valSpan.textContent = `${last5Val.toFixed(1)} (${seasonVal.toFixed(1)})`;
-
-  let arrow = "■";
-  if (trend === "up") arrow = "▲";
-  else if (trend === "down") arrow = "▼";
-
-  if (arrowSpan) arrowSpan.textContent = arrow;
-}
-
-// Filter buttons
+// --------------------------------------------------
+// Filter buttons (All / Green / Yellow / Red)
+// --------------------------------------------------
 document.querySelectorAll(".filterButton").forEach(btn => {
   btn.addEventListener("click", () => {
     currentFilter = btn.dataset.filter;
+
     document
       .querySelectorAll(".filterButton")
-      .forEach(b => b.classList.remove("pill-active"));
-    btn.classList.add("pill-active");
+      .forEach(b => b.classList.remove("filterActive"));
+
+    btn.classList.add("filterActive");
     renderProps();
   });
 });
 
-// View toggle
-document.querySelectorAll(".viewBtn").forEach(btn => {
+// --------------------------------------------------
+// View mode toggle (Expanded / Compact)
+// --------------------------------------------------
+const viewToggleButtons = document.querySelectorAll(".toggleButton");
+
+viewToggleButtons.forEach(btn => {
   btn.addEventListener("click", () => {
-    currentView = btn.dataset.view;
-    document
-      .querySelectorAll(".viewBtn")
-      .forEach(b => b.classList.remove("viewBtn-active"));
-    btn.classList.add("viewBtn-active");
-    renderProps();
+    viewToggleButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    const mode = btn.dataset.mode;
+    if (mode === "compact") {
+      document.body.classList.add("compactMode");
+    } else {
+      document.body.classList.remove("compactMode");
+    }
   });
 });
 
-// Load button
+// --------------------------------------------------
+// Hook up Load button
+// --------------------------------------------------
 document.getElementById("loadButton").addEventListener("click", loadData);
