@@ -3,7 +3,7 @@ name: Build Rosters (BallDontLie)
 on:
  workflow_dispatch:
  schedule:
-   - cron: "30 6 * * *"  # 6:30 UTC daily (adjust as you like)
+   - cron: "0 6 * * *"   # Daily at 6:00 UTC
 
 jobs:
  build:
@@ -28,8 +28,8 @@ jobs:
        run: |
          python scripts/build_rosters_bdl.py
 
-     - name: Commit rosters.json
+     - name: Commit roster update
        uses: stefanzweifel/git-auto-commit-action@v5
        with:
-         commit_message: "Update rosters.json from BallDontLie"
+         commit_message: "Update rosters.json (BallDontLie)"
          file_pattern: rosters.json
