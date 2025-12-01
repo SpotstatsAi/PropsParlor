@@ -2,25 +2,24 @@
 """
 build_rosters_bdl.py
 
-Builds rosters.json from the BallDontLie API.
+Generates rosters.json using the BallDontLie API.
 
-- Pulls ALL active NBA players from /v1/players
-- Filters to the 30 NBA teams
-- Writes rosters.json using EXACT team abbreviations your UI expects:
-   {
-     "ATL": ["Trae Young", ...],
-     "BOS": [...],
-     ...
-   }
+This script:
+ • Fetches ALL players from BDL using pagination
+ • Filters to ACTIVE players with a valid team
+ • Normalizes names so player_stats_bdl can match them perfectly
+ • Groups players into NBA rosters by team abbreviation
+ • Outputs rosters.json in the exact format your UI expects
 
 Environment:
- BALLDONTLIE_API_KEY  -> your BallDontLie premium API key
+ BALLDONTLIE_API_KEY = your BDL Bearer token
 """
 
 import json
 import os
 import sys
 from time import sleep
+
 import requests
 
 BDL_BASE = "https://api.balldontlie.io/v1"
@@ -30,82 +29,125 @@ if not API_KEY:
    print("ERROR: BALLDONTLIE_API_KEY is not set", file=sys.stderr)
    sys.exit(1)
 
-# 30 NBA team abbreviations used by BDL
-NBA_TEAMS = {
-   "ATL","BOS","BKN","CHA","CHI","CLE",
-   "DAL","DEN","DET","GSW","HOU","IND",
-   "LAC","LAL","MEM","MIA","MIL","MIN",
-   "NOP","NYK","OKC","ORL","PHI","PHX",
-   "POR","SAC","SAS","TOR","UTA","WAS"
-}
 
-def bdl_get(path, params=None):
-   """BallDontLie GET wrapper with retries."""
+# ------------------------------
+# Helpers
+# ------------------------------
+
+def bdl_get(path: str, params=None) -> dict:
+   """Low-level GET wrapper with retries."""
    url = f"{BDL_BASE}/{path}"
-   headers = {"Authorization": f"Bearer {API_KEY}", "Accept": "application/json"}
+   headers = {
+       "Authorization": f"Bearer {API_KEY}",
+       "Accept": "application/json",
+   }
 
    for attempt in range(3):
        try:
-           r = requests.get(url, headers=headers, params=params, timeout=30)
-           r.raise_for_status()
-           return r.json()
-       except Exception as e:
-           print(f"[bdl_get] ERROR attempt {attempt+1}/3: {e}", file=sys.stderr)
+           resp = requests.get(url, headers=headers, params=params, timeout=30)
+           resp.raise_for_status()
+           return resp.json()
+       except requests.RequestException as e:
+           print(f"[bdl_get] ERROR {e} (attempt {attempt+1}/3)", file=sys.stderr)
            if attempt == 2:
                raise
            sleep(1.2)
 
-def fetch_rosters_from_bdl():
-   print("Fetching players from BallDontLie...", file=sys.stderr)
+   raise RuntimeError("bdl_get: failed after retries")
 
-   rosters = {team: [] for team in NBA_TEAMS}
 
+def norm_name(name: str) -> str:
+   """Normalize player names for consistency."""
+   return (
+       name.lower()
+       .replace(".", "")
+       .replace("'", "")
+       .replace("-", " ")
+       .strip()
+   )
+
+
+# ------------------------------
+# Build roster
+# ------------------------------
+
+def fetch_all_players() -> list:
+   """Fetch the entire NBA player list via pagination."""
+   print("Fetching ALL players from BallDontLie...", file=sys.stderr)
+
+   players = []
    page = 1
    per_page = 100
 
    while True:
-       data = bdl_get("players", {"page": page, "per_page": per_page, "active": "true"})
-       players = data.get("data", [])
-       meta = data.get("meta", {})
-       total_pages = meta.get("total_pages", page)
+       data = bdl_get("players", params={"page": page, "per_page": per_page})
+       batch = data.get("data", [])
 
-       print(f"  players page {page}/{total_pages}", file=sys.stderr)
-
-       if not players:
+       if not batch:
            break
 
-       for p in players:
-           team = p.get("team") or {}
-           abbr = team.get("abbreviation")
-           if abbr not in NBA_TEAMS:
-               continue
+       players.extend(batch)
 
-           first = (p.get("first_name") or "").strip()
-           last = (p.get("last_name") or "").strip()
-           full = f"{first} {last}".strip()
-
-           if full and full not in rosters[abbr]:
-               rosters[abbr].append(full)
+       meta = data.get("meta", {})
+       total_pages = meta.get("total_pages", page)
+       print(f"  players page {page}/{total_pages}", file=sys.stderr)
 
        if page >= total_pages:
            break
        page += 1
 
-   # Sort names for consistency
-   for t in rosters:
-       rosters[t].sort()
+   print(f"Total players fetched: {len(players)}", file=sys.stderr)
+   return players
 
+
+def build_rosters():
+   """Build rosters grouped by team abbreviation."""
+   players = fetch_all_players()
+
+   rosters: dict[str, list[str]] = {}
+
+   for p in players:
+       team = p.get("team")
+       if not team:
+           continue
+
+       abbrev = team.get("abbreviation")
+       if not abbrev:
+           continue
+
+       # Build proper full name
+       first = p.get("first_name", "").strip()
+       last = p.get("last_name", "").strip()
+       full = f"{first} {last}".strip()
+
+       # Skip any weird blanks
+       if not full:
+           continue
+
+       # Add player to team
+       if abbrev not in rosters:
+           rosters[abbrev] = []
+
+       rosters[abbrev].append(full)
+
+   # Sort player names alphabetically under each team
+   for t in rosters:
+       rosters[t] = sorted(rosters[t])
+
+   print("Rosters built successfully.", file=sys.stderr)
    return rosters
 
+
 def main():
-   print("Building rosters.json from BallDontLie...", file=sys.stderr)
-   rosters = fetch_rosters_from_bdl()
+   print("Building rosters.json via BallDontLie...", file=sys.stderr)
+
+   rosters = build_rosters()
 
    with open("rosters.json", "w", encoding="utf-8") as f:
        json.dump(rosters, f, indent=2, sort_keys=True)
 
-   total = sum(len(v) for v in rosters.values())
-   print(f"Wrote rosters.json with {total} total players.", file=sys.stderr)
+   print("Wrote rosters.json.", file=sys.stderr)
+
 
 if __name__ == "__main__":
    main()
