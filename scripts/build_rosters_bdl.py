@@ -4,25 +4,23 @@ build_rosters_bdl.py
 
 Builds rosters.json from the BallDontLie API.
 
-- Uses /v1/players with pagination
-- Filters to the 30 NBA franchises
-- Output format matches your UI expectations:
-
- {
-   "ATL": ["Trae Young", "Dejounte Murray", ...],
-   "BOS": [...],
-   ...
- }
+- Pulls ALL active NBA players from /v1/players
+- Filters to the 30 NBA teams
+- Writes rosters.json using EXACT team abbreviations your UI expects:
+   {
+     "ATL": ["Trae Young", ...],
+     "BOS": [...],
+     ...
+   }
 
 Environment:
- BALLDONTLIE_API_KEY  -> your BallDontLie premium API key (Bearer token)
+ BALLDONTLIE_API_KEY  -> your BallDontLie premium API key
 """
 
 import json
 import os
 import sys
 from time import sleep
-
 import requests
 
 BDL_BASE = "https://api.balldontlie.io/v1"
@@ -32,72 +30,49 @@ if not API_KEY:
    print("ERROR: BALLDONTLIE_API_KEY is not set", file=sys.stderr)
    sys.exit(1)
 
-# 30 NBA franchises (current abbreviations as used in most APIs)
+# 30 NBA team abbreviations used by BDL
 NBA_TEAMS = {
-   "ATL", "BOS", "BKN", "CHA", "CHI", "CLE",
-   "DAL", "DEN", "DET", "GSW", "HOU", "IND",
-   "LAC", "LAL", "MEM", "MIA", "MIL", "MIN",
-   "NOP", "NYK", "OKC", "ORL", "PHI", "PHX",
-   "POR", "SAC", "SAS", "TOR", "UTA", "WAS"
+   "ATL","BOS","BKN","CHA","CHI","CLE",
+   "DAL","DEN","DET","GSW","HOU","IND",
+   "LAC","LAL","MEM","MIA","MIL","MIN",
+   "NOP","NYK","OKC","ORL","PHI","PHX",
+   "POR","SAC","SAS","TOR","UTA","WAS"
 }
 
-
-def bdl_get(path: str, params: dict | None = None) -> dict:
-   """
-   Low-level GET wrapper for BallDontLie with auth + simple retry.
-   """
+def bdl_get(path, params=None):
+   """BallDontLie GET wrapper with retries."""
    url = f"{BDL_BASE}/{path}"
-   headers = {
-       "Authorization": f"Bearer {API_KEY}",
-       "Accept": "application/json",
-   }
+   headers = {"Authorization": f"Bearer {API_KEY}", "Accept": "application/json"}
 
    for attempt in range(3):
        try:
-           resp = requests.get(url, headers=headers, params=params, timeout=30)
-           resp.raise_for_status()
-           return resp.json()
-       except requests.RequestException as e:
-           print(f"[bdl_get] ERROR on {url} (attempt {attempt+1}/3): {e}", file=sys.stderr)
+           r = requests.get(url, headers=headers, params=params, timeout=30)
+           r.raise_for_status()
+           return r.json()
+       except Exception as e:
+           print(f"[bdl_get] ERROR attempt {attempt+1}/3: {e}", file=sys.stderr)
            if attempt == 2:
                raise
-           sleep(1.5)
+           sleep(1.2)
 
-   raise RuntimeError("bdl_get: exhausted retries")
-
-
-def fetch_rosters_from_bdl() -> dict:
-   """
-   Query /players and build {team_abbrev: [Player Full Name, ...]}.
-
-   We:
-     - paginate through /players
-     - keep only players whose team.abbreviation is one of NBA_TEAMS
-     - use 'active' flag to reduce noise
-   """
+def fetch_rosters_from_bdl():
    print("Fetching players from BallDontLie...", file=sys.stderr)
 
-   rosters: dict[str, list[str]] = {abbr: [] for abbr in NBA_TEAMS}
+   rosters = {team: [] for team in NBA_TEAMS}
 
    page = 1
    per_page = 100
 
    while True:
-       params = {
-           "page": page,
-           "per_page": per_page,
-           # Many BDL implementations support 'active' flag; harmless if ignored
-           "active": "true",
-       }
-
-       data = bdl_get("players", params=params)
+       data = bdl_get("players", {"page": page, "per_page": per_page, "active": "true"})
        players = data.get("data", [])
        meta = data.get("meta", {})
+       total_pages = meta.get("total_pages", page)
+
+       print(f"  players page {page}/{total_pages}", file=sys.stderr)
 
        if not players:
            break
-
-       print(f"  players page {page}/{meta.get('total_pages', '?')}", file=sys.stderr)
 
        for p in players:
            team = p.get("team") or {}
@@ -107,23 +82,20 @@ def fetch_rosters_from_bdl() -> dict:
 
            first = (p.get("first_name") or "").strip()
            last = (p.get("last_name") or "").strip()
-           full_name = f"{first} {last}".strip()
+           full = f"{first} {last}".strip()
 
-           if full_name and full_name not in rosters[abbr]:
-               rosters[abbr].append(full_name)
+           if full and full not in rosters[abbr]:
+               rosters[abbr].append(full)
 
-       # Pagination: BallDontLie meta usually has total_pages & next_page
-       next_page = meta.get("next_page")
-       if not next_page:
+       if page >= total_pages:
            break
-       page = next_page
+       page += 1
 
-   # Sort each team’s roster alphabetically for consistency
-   for abbr in sorted(rosters.keys()):
-       rosters[abbr].sort()
+   # Sort names for consistency
+   for t in rosters:
+       rosters[t].sort()
 
    return rosters
-
 
 def main():
    print("Building rosters.json from BallDontLie...", file=sys.stderr)
@@ -132,10 +104,8 @@ def main():
    with open("rosters.json", "w", encoding="utf-8") as f:
        json.dump(rosters, f, indent=2, sort_keys=True)
 
-   # Simple summary
-   total_players = sum(len(v) for v in rosters.values())
-   print(f"Wrote rosters.json with {total_players} players across {len(rosters)} teams.", file=sys.stderr)
-
+   total = sum(len(v) for v in rosters.values())
+   print(f"Wrote rosters.json with {total} total players.", file=sys.stderr)
 
 if __name__ == "__main__":
    main()
