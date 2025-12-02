@@ -10,10 +10,11 @@ export async function onRequest(context) {
       );
     }
 
+    // The normalized JSON on GitHub Pages
     const scheduleUrl = "https://spotstatsai.github.io/SpotstatsAi/schedule.json";
 
     const scheduleRes = await fetch(scheduleUrl, {
-      cf: { cacheEverything: true, cacheTtl: 3600 },
+      cf: { cacheEverything: true, cacheTtl: 120 },
     });
 
     if (!scheduleRes.ok) {
@@ -24,14 +25,17 @@ export async function onRequest(context) {
     }
 
     const schedule = await scheduleRes.json();
-    const games = schedule.filter((g) => g.game_date === date);
 
-    return new Response(JSON.stringify(games), {
+    // NEW FORMAT: schedule is a FLAT ARRAY
+    const gamesForDate = schedule.filter(g => g.game_date === date);
+
+    return new Response(JSON.stringify(gamesForDate), {
       headers: { "Content-Type": "application/json" },
     });
+
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: err.message || "Unknown error" }),
+      JSON.stringify({ error: err.message || "Internal server error" }),
       { status: 500 },
     );
   }
