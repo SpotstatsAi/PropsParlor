@@ -5,26 +5,28 @@ export async function onRequest(context) {
     const scheduleUrl = "https://spotstatsai.github.io/SpotstatsAi/schedule.json";
 
     const scheduleRes = await fetch(scheduleUrl, {
-      cf: { cacheEverything: true, cacheTtl: 3600 }
+      cf: { cacheEverything: true, cacheTtl: 3600 },
     });
 
     if (!scheduleRes.ok) {
       return new Response(
         JSON.stringify({ error: "Failed to load schedule.json" }),
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     const schedule = await scheduleRes.json();
+
+    // schedule is now a flat array of game objects
     const gamesToday = schedule.filter((g) => g.game_date === today);
 
     return new Response(JSON.stringify(gamesToday), {
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
     return new Response(
       JSON.stringify({ error: err.message || "Unknown error" }),
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
