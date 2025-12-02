@@ -16,15 +16,15 @@ export async function onRequest(context) {
     }
 
     const schedule = await scheduleRes.json();
-    const gamesToday = schedule.filter(g => g.game_date === today);
+    const gamesToday = schedule.filter((g) => g.game_date === today);
 
     return new Response(JSON.stringify(gamesToday), {
       headers: { "Content-Type": "application/json" }
     });
-
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500
-    });
+    return new Response(
+      JSON.stringify({ error: err.message || "Unknown error" }),
+      { status: 500 }
+    );
   }
 }
