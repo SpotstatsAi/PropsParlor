@@ -22235,9 +22235,11 @@
     "sr_away_id": "583ecb3a-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "322a2066-1326-4fc8-a119-4b310003d2cc",
-      "status": "inprogress",
+      "status": "complete",
       "coverage": "full",
       "scheduled": "2025-12-02T02:00:00+00:00",
+      "home_points": 133,
+      "away_points": 125,
       "track_on_court": true,
       "sr_id": "sr:match:62924897",
       "reference": "0022500316",
