@@ -51,12 +51,11 @@ def update_results(lookback_days: int = 5):
     index = {}
     for g in master:
         key = (
-            g.get("game_date"),
-            g.get("home_team_abbr"),
-            g.get("away_team_abbr"),
+            g["game_date"],
+            g["home_team_abbr"],
+            g["away_team_abbr"],
         )
-        if all(key):
-            index[key] = g
+        index[key] = g
 
     today = datetime.utcnow().date()
     start_date = today - timedelta(days=lookback_days)
@@ -77,23 +76,23 @@ def update_results(lookback_days: int = 5):
     )
 
     for bg in bdl_games:
-        bdl_id = bg.get("id")
-
         game_date = (bg.get("date") or "")[:10]
 
         home = bg.get("home_team") or {}
         away = bg.get("visitor_team") or {}
 
-        home_abbr = home.get("abbreviation")
-        away_abbr = away.get("abbreviation")
+        key = (
+            game_date,
+            home.get("abbreviation"),
+            away.get("abbreviation"),
+        )
 
-        key = (game_date, home_abbr, away_abbr)
         game = index.get(key)
         if not game:
             continue
 
-        game["bdl_game_id"] = bdl_id
-        game["status"] = bg.get("status") or game.get("status") or "Final"
+        game["bdl_game_id"] = bg.get("id")
+        game["status"] = bg.get("status") or "Final"
         game["home_score"] = bg.get("home_team_score")
         game["away_score"] = bg.get("visitor_team_score")
         game["bdl_payload"] = bg
