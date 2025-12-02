@@ -1,33 +1,216 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>PropsParlor Games</title>
   <meta charset="UTF-8" />
+  <title>PropsParlor Games</title>
+
+  <!-- Styles -->
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #090b10;
+      color: #ffffff;
+      padding: 20px;
+    }
+
+    h1, h2 {
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .section {
+      margin-bottom: 50px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* Game List */
+    #games-list .game-card {
+      background: #0f1117;
+      padding: 18px;
+      margin-bottom: 14px;
+      border-radius: 10px;
+      border: 1px solid #1c1f27;
+    }
+
+    .trend-grid,
+    .prop-grid,
+    .roster-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .player-card,
+    .team-card {
+      background: #0f1117;
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid #1f1f25;
+      transition: 0.2s ease-in-out;
+    }
+
+    .player-card:hover,
+    .team-card:hover {
+      border-color: #3c3cff;
+      transform: translateY(-4px);
+    }
+
+    .player-stat {
+      font-size: 13px;
+      color: #9ba1b4;
+    }
+  </style>
 </head>
 
 <body>
 
+  <h1>PropsParlor Games</h1>
+
+  <!-- TODAY'S GAMES -->
   <section id="games-section" class="section">
-  <h2>Today's Games</h2>
-  <div id="games-list"></div>
-</section>
+    <h2>Today's Games</h2>
+    <div id="games-list">Loading...</div>
+  </section>
 
-<section id="no-games-dashboard" class="section hidden">
+  <!-- FALLBACK DASHBOARD -->
+  <section id="no-games-dashboard" class="section hidden">
 
-  <!-- Trending Players -->
-  <h2>🔥 Trending Players</h2>
-  <div id="trending-players" class="trend-grid"></div>
+    <h2>🔥 Trending Players</h2>
+    <div id="trending-players" class="trend-grid"></div>
 
-  <!-- Prop Targets -->
-  <h2>🎯 Top Prop Targets</h2>
-  <div id="prop-targets" class="prop-grid"></div>
+    <h2>🎯 Top Prop Targets</h2>
+    <div id="prop-targets" class="prop-grid"></div>
 
-  <!-- Roster Browser -->
-  <h2>🧩 Team Rosters</h2>
-  <div id="team-rosters" class="roster-grid"></div>
+    <h2>🧩 Team Rosters</h2>
+    <div id="team-rosters" class="roster-grid"></div>
 
-</section>
+  </section>
 
+  <!-- MAIN APP SCRIPT -->
+  <script>
+    // ===========================
+    // LOAD TODAY'S GAMES
+    // ===========================
+    async function loadTodaysGames() {
+      const today = new Date().toISOString().split("T")[0];
+      const res = await fetch(`/api/games/date/${today}`);
 
+      let games = [];
+      try {
+        games = await res.json();
+      } catch {
+        games = [];
+      }
+
+      const gamesList = document.getElementById("games-list");
+
+      if (!games || games.length === 0) {
+        // Hide games section
+        document.getElementById("games-section").classList.add("hidden");
+        // Load fallback dashboard
+        await loadFallbackDashboard();
+        return;
+      }
+
+      // Render game cards
+      gamesList.innerHTML = games.map(g => `
+        <div class="game-card">
+          <strong>${g.away_team_abbr} @ ${g.home_team_abbr}</strong><br>
+          Status: ${g.status}<br>
+          ${g.time_et ? `Time: ${g.time_et}` : ""}
+        </div>
+      `).join("");
+    }
+
+    // ===========================
+    // FALLBACK DASHBOARD
+    // ===========================
+    async function loadFallbackDashboard() {
+
+      const statsRes = await fetch("/player_stats.json");
+      const rosterRes = await fetch("/rosters.json");
+
+      const stats = await statsRes.json();
+      const rosters = await rosterRes.json();
+
+      // Trending players by PPG
+      const trending = [...stats]
+        .sort((a, b) => b.points_per_game - a.points_per_game)
+        .slice(0, 8);
+      renderTrendingPlayers(trending);
+
+      // Consistency score
+      const propTargets = [...stats]
+        .map(p => ({
+          ...p,
+          consistency:
+            (p.points_per_game * 0.5) +
+            (p.rebounds_per_game * 0.3) +
+            (p.assists_per_game * 0.2)
+        }))
+        .sort((a, b) => b.consistency - a.consistency)
+        .slice(0, 8);
+      renderPropTargets(propTargets);
+
+      // Team rosters grouped
+      const teams = {};
+      for (const p of rosters) {
+        if (!teams[p.team_abbreviation]) teams[p.team_abbreviation] = [];
+        teams[p.team_abbreviation].push(p);
+      }
+      renderTeamRosters(teams);
+
+      document.getElementById("no-games-dashboard").classList.remove("hidden");
+    }
+
+    // RENDER: Trending
+    function renderTrendingPlayers(players) {
+      const div = document.getElementById("trending-players");
+      div.innerHTML = players.map(p => `
+        <div class="player-card">
+          <h3>${p.first_name} ${p.last_name}</h3>
+          <div class="player-stat">PPG: ${p.points_per_game}</div>
+          <div class="player-stat">REB: ${p.rebounds_per_game}</div>
+          <div class="player-stat">AST: ${p.assists_per_game}</div>
+        </div>
+      `).join("");
+    }
+
+    // RENDER: Prop Targets
+    function renderPropTargets(players) {
+      const div = document.getElementById("prop-targets");
+      div.innerHTML = players.map(p => `
+        <div class="player-card">
+          <h3>${p.first_name} ${p.last_name}</h3>
+          <div class="player-stat">Consistency: ${p.consistency.toFixed(1)}</div>
+          <div class="player-stat">PPG: ${p.points_per_game}</div>
+          <div class="player-stat">RPG: ${p.rebounds_per_game}</div>
+          <div class="player-stat">APG: ${p.assists_per_game}</div>
+        </div>
+      `).join("");
+    }
+
+    // RENDER: Rosters
+    function renderTeamRosters(teams) {
+      const div = document.getElementById("team-rosters");
+      div.innerHTML = Object.entries(teams).map(([team, players]) => `
+        <div class="team-card">
+          <h3>${team}</h3>
+          <ul>
+            ${players
+              .map(p => `<li>${p.first_name} ${p.last_name}</li>`)
+              .join("")}
+          </ul>
+        </div>
+      `).join("");
+    }
+
+    // START APP
+    loadTodaysGames();
+  </script>
 </body>
 </html>
