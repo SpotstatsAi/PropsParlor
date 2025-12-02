@@ -1,168 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>PropsParlor Games</title>
-
-  <!-- BASIC DARK MODE RESET -->
-  <style>
-    body {
-      margin: 0;
-      padding: 30px;
-      background: #0d0f15;
-      color: white;
-      font-family: Arial, sans-serif;
-    }
-
-    h2 { margin-top: 40px; }
-
-    .hidden { display: none; }
-
-    .section { margin-bottom: 40px; }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 14px;
-    }
-
-    .card {
-      background: #151821;
-      padding: 16px;
-      border-radius: 10px;
-      border: 1px solid #22252f;
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <title>PropsParlor</title>
+    <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
 
-  <!-- TODAY’S GAMES -->
-  <section id="games-section" class="section">
-    <h2>Today's Games</h2>
-    <div id="games-list"></div>
-  </section>
+<header class="top-bar">
+    <div class="logo">PROP<span>SPARLOR</span></div>
+    <nav class="nav">
+        <a onclick="showSection('players-section')">Players</a>
+        <a onclick="showSection('teams-section')">Teams</a>
+        <a onclick="showSection('games-section')">Games</a>
+        <a onclick="showSection('trends-section')">Trending</a>
+    </nav>
+</header>
 
-  <!-- FALLBACK DASHBOARD -->
-  <section id="no-games-dashboard" class="section hidden">
+<main>
 
-    <h2>🔥 Trending Players</h2>
-    <div id="trending-players" class="grid"></div>
+    <!-- PLAYERS -->
+    <section id="players-section" class="page-section visible">
+        <h1>Players</h1>
+        <div id="players-grid" class="grid"></div>
+    </section>
 
-    <h2>🎯 Top Prop Targets</h2>
-    <div id="prop-targets" class="grid"></div>
+    <!-- TEAMS -->
+    <section id="teams-section" class="page-section">
+        <h1>Teams</h1>
+        <div id="teams-grid" class="grid"></div>
+    </section>
 
-    <h2>🧩 Team Rosters</h2>
-    <div id="team-rosters" class="grid"></div>
+    <!-- GAMES -->
+    <section id="games-section" class="page-section">
+        <h1>Today's Games</h1>
+        <div id="games-list" class="grid"></div>
+    </section>
 
-  </section>
+    <!-- TRENDING -->
+    <section id="trends-section" class="page-section">
+        <h1>Trending Players</h1>
+        <div id="trending-grid" class="grid"></div>
+    </section>
 
-  <!-- MAIN JS -->
-  <script>
-    async function init() {
-      await loadTodayGames();
-    }
+</main>
 
-    async function loadTodayGames() {
-      const today = new Date().toISOString().split("T")[0];
-
-      const res = await fetch(`/api/games/date/${today}`);
-      const games = await res.json();
-
-      if (!games || games.length === 0) {
-        document.getElementById("games-section").classList.add("hidden");
-        await loadFallbackDashboard();
-        return;
-      }
-
-      const list = document.getElementById("games-list");
-      list.innerHTML = "";
-
-      games.forEach(g => {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `
-          <strong>${g.away_team_abbr}</strong> @ 
-          <strong>${g.home_team_abbr}</strong><br>
-          ${g.time_et || "TBD"}
-        `;
-        list.appendChild(div);
-      });
-    }
-
-    async function loadFallbackDashboard() {
-      document.getElementById("no-games-dashboard").classList.remove("hidden");
-
-      loadTrendingPlayers();
-      loadPropTargets();
-      loadTeamRosters();
-    }
-
-    async function loadTrendingPlayers() {
-      const res = await fetch("/player_stats.json");
-      const data = await res.json();
-
-      const container = document.getElementById("trending-players");
-      container.innerHTML = "";
-
-      const top = data.slice(0, 10);
-
-      top.forEach(p => {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `
-          <strong>${p.player_name}</strong><br>
-          PPG: ${p.points}<br>
-          AST: ${p.assists}<br>
-          REB: ${p.rebounds}
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    async function loadPropTargets() {
-      const res = await fetch("/player_stats.json");
-      const data = await res.json();
-
-      const container = document.getElementById("prop-targets");
-      container.innerHTML = "";
-
-      const sorted = [...data]
-        .sort((a, b) => (b.points + b.assists + b.rebounds) - (a.points + a.assists + a.rebounds))
-        .slice(0, 10);
-
-      sorted.forEach(p => {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `
-          <strong>${p.player_name}</strong><br>
-          Combo: ${p.points + p.assists + p.rebounds}
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    async function loadTeamRosters() {
-      const res = await fetch("/rosters.json");
-      const data = await res.json();
-
-      const container = document.getElementById("team-rosters");
-      container.innerHTML = "";
-
-      const teams = Object.keys(data);
-
-      teams.forEach(team => {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `
-          <strong>${team}</strong><br>
-          Players: ${data[team].length}
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    init();
-  </script>
+<script src="app.js"></script>
 </body>
 </html>
