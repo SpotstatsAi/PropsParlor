@@ -1,23 +1,23 @@
-name: Build NBA Data (BallDontLie – Rosters + Player Stats)
+name: BDL Update → rosters.json + player_stats.json + schedule.json
 
 on:
-  workflow_dispatch:
   schedule:
-    # Every 2 hours
-    - cron: "0 */2 * * *"
-    # Nightly sync at 3:05 AM EST (8:05 UTC)
-    - cron: "5 8 * * *"
+    - cron: "0 10 * * *" # 10:00 UTC daily – adjust if you want
+  workflow_dispatch: {}
 
 jobs:
-  build:
+  build-bdl-all:
     runs-on: ubuntu-latest
 
+    env:
+      BDL_API_KEY: ${{ secrets.BDL_API_KEY }}
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -26,31 +26,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      # ---------------------------------------------------
-      # STEP 1: Build Rosters (BDL)
-      # ---------------------------------------------------
-      - name: Build BallDontLie Rosters
-        env:
-          BDL_API_KEY: ${{ secrets.BDL_API_KEY }}
-        run: |
-          python scripts/build_rosters_bdl.py
-
-      # ---------------------------------------------------
-      # STEP 2: Build Player Stats (BDL)
-      # ---------------------------------------------------
-      - name: Build BallDontLie Player Stats
-        env:
-          BDL_API_KEY: ${{ secrets.BDL_API_KEY }}
+      - name: Build BDL data (rosters + player_stats + schedule)
         run: |
           python scripts/build_player_stats_bdl.py
 
-      # ---------------------------------------------------
-      # AUTO-COMMIT RESULTS
-      # ---------------------------------------------------
-      - name: Auto-Commit Updated JSON
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "BDL Update → rosters.json + player_stats.json"
-          file_pattern: |
-            rosters.json
-            player_stats.json
+      - name: Commit and push updated JSON
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add rosters.json player_stats_base.json player_stats.json schedule.json || true
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "BDL Update → rosters.json + player_stats.json"
+            git push
+          fi
