@@ -1,40 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
+  <title>PropsParlor Games</title>
   <meta charset="UTF-8" />
-  <title>PropsParlor · NBA Props Engine</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-  <header class="pp-header">
-    <h1>PropsParlor</h1>
-    <p class="pp-subtitle">NBA schedule, stats, and prop angles powered by SpotstatsAi + BallDontLie</p>
-  </header>
 
-  <main class="pp-main">
-    <section class="pp-section">
-      <h2>Games</h2>
+  <h1 style="color:white; font-family:Inter; margin-bottom:20px;">
+    Today's Games
+  </h1>
 
-      <div id="date-tabs" class="pp-date-tabs"></div>
+  <div id="games-container"></div>
 
-      <div id="games-today" class="pp-card-list">
-        <div class="pp-empty">Loading games…</div>
-      </div>
-    </section>
+  <!-- UI Imports -->
+  <link rel="stylesheet" href="/ui/schedule-ui.css">
+  <script src="/ui/team-style-map.js"></script>
+  <script src="/ui/schedule-ui.js"></script>
 
-    <section class="pp-section">
-      <h2>Game Details</h2>
-      <div id="game-details" class="pp-card">
-        <div class="pp-empty">Select a game to see matchup and prop context.</div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="pp-footer">
-    <span>PropsParlor · SpotstatsAi</span>
-  </footer>
-
-  <script src="app.js"></script>
 </body>
 </html>
