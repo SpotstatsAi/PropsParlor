@@ -2,136 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>NBA Prop Engine</title>
+  <title>PropsParlor · NBA Props Engine</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-tag">SPOTSTATS.AI</span>
-      <span class="brand-title">NBA Prop Engine</span>
-    </div>
-
-    <button id="loadButton" class="primary-btn">
-      Load Today’s Games
-    </button>
+  <header class="pp-header">
+    <h1>PropsParlor</h1>
+    <p class="pp-subtitle">NBA schedule, stats, and prop angles powered by SpotstatsAi + BallDontLie</p>
   </header>
 
-  <main class="layout">
-    <!-- LEFT COLUMN -->
-    <aside class="sidebar">
-      <section class="panel">
-        <h2>Today's Games</h2>
-        <div id="games" class="games-list"></div>
-      </section>
-
-      <section class="panel">
-        <h2>Teams</h2>
-        <div id="teamsList" class="teams-list"></div>
-      </section>
-    </aside>
-
-    <!-- RIGHT COLUMN -->
-    <section class="main">
-      <div class="controls-row">
-        <div class="control-group">
-          <span class="control-label">View:</span>
-          <button class="viewBtn viewBtn-active" data-view="expanded">Expanded</button>
-          <button class="viewBtn" data-view="compact">Compact</button>
-        </div>
-
-        <div class="control-group">
-          <span class="control-label">Confidence:</span>
-          <button class="filterButton pill pill-active" data-filter="all">All</button>
-          <button class="filterButton pill" data-filter="green">Green</button>
-          <button class="filterButton pill" data-filter="yellow">Yellow</button>
-          <button class="filterButton pill" data-filter="red">Red</button>
-        </div>
+  <main class="pp-main">
+    <section class="pp-section">
+      <h2>Today&apos;s Games</h2>
+      <div id="games-today" class="pp-card-list">
+        <div class="pp-empty">Loading games…</div>
       </div>
+    </section>
 
-      <h2 class="props-title">Player Props</h2>
-      <div id="propsOutput" class="props-list"></div>
-
-      <!-- Player card template -->
-      <template id="propRowTemplate">
-        <article class="propCard" data-view="expanded">
-          <header class="propHeader">
-            <div>
-              <div class="propName"></div>
-              <div class="propTeam smallText"></div>
-            </div>
-
-            <div class="propHeaderRight">
-              <div class="confidenceBadge">
-                <span class="confidenceValue">0</span>
-                <span class="confidenceLabel">Confidence</span>
-              </div>
-              <span class="tierTag">RED</span>
-            </div>
-          </header>
-
-          <div class="propBody">
-            <div class="propBlock matchupBlock">
-              <div class="blockTitle">Matchup</div>
-              <div class="line oppLine"></div>
-              <div class="line oppRank"></div>
-              <div class="smiRow">
-                <span class="smiLabel">SMI</span>
-                <div class="smiBar">
-                  <div class="smiFill"></div>
-                </div>
-                <span class="smiText"></span>
-              </div>
-            </div>
-
-            <div class="propBlock seasonBlock">
-              <div class="blockTitle">Season vs Last 5</div>
-              <div class="line avgSummary"></div>
-
-              <div class="statRow">
-                <span class="statLabel">PTS</span>
-                <div class="trendBar">
-                  <div class="trendFill trendPtsFill"></div>
-                </div>
-                <span class="trendValue trendValuePts"></span>
-                <span class="trendArrow trendArrowPts"></span>
-              </div>
-
-              <div class="statRow">
-                <span class="statLabel">REB</span>
-                <div class="trendBar">
-                  <div class="trendFill trendRebFill"></div>
-                </div>
-                <span class="trendValue trendValueReb"></span>
-                <span class="trendArrow trendArrowReb"></span>
-              </div>
-
-              <div class="statRow">
-                <span class="statLabel">AST</span>
-                <div class="trendBar">
-                  <div class="trendFill trendAstFill"></div>
-                </div>
-                <span class="trendValue trendValueAst"></span>
-                <span class="trendArrow trendArrowAst"></span>
-              </div>
-            </div>
-
-            <div class="propBlock advancedBlock">
-              <div class="blockTitle">Advanced</div>
-              <div class="line usageLine"></div>
-              <div class="line paceLine"></div>
-              <div class="line teamRecord"></div>
-              <div class="line oppRecord"></div>
-              <div class="line oppStreak"></div>
-              <div class="line consistencyLine"></div>
-            </div>
-          </div>
-        </article>
-      </template>
+    <section class="pp-section">
+      <h2>Game Details</h2>
+      <div id="game-details" class="pp-card">
+        <div class="pp-empty">Select a game to see matchup and prop context.</div>
+      </div>
     </section>
   </main>
+
+  <footer class="pp-footer">
+    <span>PropsParlor · SpotstatsAi</span>
+  </footer>
 
   <script src="app.js"></script>
 </body>
