@@ -4,6 +4,8 @@ import time
 import requests
 from datetime import datetime, timedelta
 
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 BDL_API_KEY = os.environ.get("BDL_API_KEY")
 if not BDL_API_KEY:
     raise RuntimeError("Missing BDL_API_KEY GitHub secret")
@@ -42,16 +44,10 @@ def fetch_all_paginated(endpoint, params=None, per_page=100):
 
 
 def update_results(lookback_days: int = 5):
-    """
-    Load schedule_master.json, fetch BDL games for the last `lookback_days`,
-    and merge results into the matching games. Then write schedule.json.
-    """
-
-    # Load master schedule (built from NBA.com)
-    with open("schedule_master.json", "r", encoding="utf-8") as f:
+    master_path = os.path.join(REPO_ROOT, "schedule_master.json")
+    with open(master_path, "r", encoding="utf-8") as f:
         master = json.load(f)
 
-    # Build a quick index by (date, home_abbr, away_abbr)
     index = {}
     for g in master:
         key = (
@@ -62,14 +58,13 @@ def update_results(lookback_days: int = 5):
         if all(key):
             index[key] = g
 
-    # BDL: fetch recent games only (yesterday, etc.)
     today = datetime.utcnow().date()
     start_date = today - timedelta(days=lookback_days)
     end_date = today - timedelta(days=1)
 
     if end_date < start_date:
-        # No past days to update yet
-        with open("schedule.json", "w", encoding="utf-8") as f:
+        output_path = os.path.join(REPO_ROOT, "schedule.json")
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(master, f, indent=2)
         return
 
@@ -84,7 +79,6 @@ def update_results(lookback_days: int = 5):
     for bg in bdl_games:
         bdl_id = bg.get("id")
 
-        # BDL uses ISO timestamps; take YYYY-MM-DD
         game_date = (bg.get("date") or "")[:10]
 
         home = bg.get("home_team") or {}
@@ -94,24 +88,18 @@ def update_results(lookback_days: int = 5):
         away_abbr = away.get("abbreviation")
 
         key = (game_date, home_abbr, away_abbr)
-
         game = index.get(key)
         if not game:
-            # If for some reason the abbreviations don't match exactly,
-            # we just skip; no crash.
             continue
 
-        # Merge scores and status
         game["bdl_game_id"] = bdl_id
         game["status"] = bg.get("status") or game.get("status") or "Final"
         game["home_score"] = bg.get("home_team_score")
         game["away_score"] = bg.get("visitor_team_score")
-
-        # Store full BDL payload if we want to use more detail later
         game["bdl_payload"] = bg
 
-    # Write merged schedule
-    with open("schedule.json", "w", encoding="utf-8") as f:
+    output_path = os.path.join(REPO_ROOT, "schedule.json")
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(master, f, indent=2)
 
 
