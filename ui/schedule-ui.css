@@ -1,102 +1,147 @@
-/* --- Global UI --- */
+/* --- GLOBAL --- */
 body {
-  background-color: #0a0f14;
-  font-family: 'Inter', sans-serif;
+  background: #0a0f14;
   color: #e2e8f0;
+  font-family: 'Inter', sans-serif;
   margin: 0;
   padding: 20px;
 }
 
-/* --- Game Card --- */
+/* --- GAME CARD --- */
 .game-card {
-  background: #121821;
-  border-radius: 14px;
-  margin-bottom: 18px;
-  padding: 16px;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
-  transition: transform .2s ease, box-shadow .2s ease;
-  border-left: 4px solid #3b82f6;
+  background: #11161f;
+  border-radius: 16px;
+  margin-bottom: 22px;
+  padding: 18px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.55);
+  transition: .2s ease;
+  border-left: 5px solid #3b82f6;
+  position: relative;
 }
 
+/* glowing edge */
+.game-card::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: inherit;
+  filter: blur(10px);
+  opacity: .7;
+}
+
+/* hover lift */
 .game-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 25px rgba(0,0,0,0.5);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.6);
 }
 
-/* --- Header Row --- */
+/* HEADER */
 .game-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.game-teams {
-  font-size: 1.1rem;
+.team-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.team-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+}
+
+.team-abbr {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+/* STATUS BADGE */
+.status-badge {
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: .75rem;
+  text-transform: uppercase;
   font-weight: 600;
   color: #fff;
 }
 
-/* Status badge */
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
 .status-upcoming { background: #2563eb; }
-.status-live { background: #dc2626; }
+.status-live { background: #dc2626; animation: pulse 1.5s infinite; }
 .status-final { background: #16a34a; }
 
-/* --- Sub Info --- */
-.game-info {
-  margin-top: 6px;
-  font-size: 0.9rem;
-  color: #94a3b8;
+/* PULSE effect for live games */
+@keyframes pulse {
+  0% { transform: scale(1); opacity: .9; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: .9; }
 }
 
-/* --- Expand button --- */
+/* MATCHUP EDGE BAR */
+.edge-bar {
+  margin-top: 16px;
+  height: 10px;
+  background: #1e293b;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.edge-fill {
+  height: 100%;
+  background: linear-gradient(to right, #3b82f6, #14b8a6);
+  transition: width .4s ease;
+}
+
+/* EXPAND BUTTON */
 .expand-btn {
-  margin-top: 12px;
-  padding: 8px 12px;
+  margin-top: 14px;
+  padding: 8px 14px;
   background: #1e293b;
   color: #60a5fa;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: .85rem;
   font-weight: 600;
-  transition: background .2s ease;
 }
 
 .expand-btn:hover {
   background: #334155;
 }
 
-/* --- Expanded panel --- */
+/* EXPANDED PANEL */
 .expand-panel {
-  margin-top: 12px;
-  padding: 12px;
-  background: #0f141b;
-  border-radius: 10px;
+  margin-top: 14px;
+  padding: 14px;
+  background: #0d121a;
+  border-radius: 12px;
   display: none;
-  animation: fadeIn .25s ease;
 }
 
-/* --- Injuries & props area --- */
-.injury-section, .props-section {
-  margin-top: 10px;
-}
-
+/* SECTIONS */
 .section-title {
   color: #3b82f6;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: .9rem;
   margin-bottom: 4px;
 }
 
-/* Simple fade animation */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+.props-slider {
+  height: 7px;
+  background: #1f2937;
+  border-radius: 4px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.props-fill {
+  height: 100%;
+  background: linear-gradient(to right, #16a34a, #22c55e);
 }
