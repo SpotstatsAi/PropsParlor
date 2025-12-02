@@ -3,7 +3,8 @@ export async function onRequest(context) {
     const today = new Date().toISOString().split("T")[0];
 
     // If propsparlor.com already points to this repo's JSON, keep this:
-    const scheduleUrl = "https://propsparlor.com/schedule.json";
+    const scheduleUrl = "https://spotstatsai.github.io/SpotstatsAi/schedule.json";
+
     // If you prefer GitHub Pages directly, use:
     // const scheduleUrl = "https://spotstatsai.github.io/SpotstatsAi/schedule.json";
 
