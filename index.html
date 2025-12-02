@@ -7,16 +7,27 @@
 
 <body>
 
-  <h1 style="color:white; font-family:Inter; margin-bottom:20px;">
-    Today's Games
-  </h1>
+  <section id="games-section" class="section">
+  <h2>Today's Games</h2>
+  <div id="games-list"></div>
+</section>
 
-  <div id="games-container"></div>
+<section id="no-games-dashboard" class="section hidden">
 
-  <!-- UI Imports -->
-  <link rel="stylesheet" href="/ui/schedule-ui.css">
-  <script src="/ui/team-style-map.js"></script>
-  <script src="/ui/schedule-ui.js"></script>
+  <!-- Trending Players -->
+  <h2>🔥 Trending Players</h2>
+  <div id="trending-players" class="trend-grid"></div>
+
+  <!-- Prop Targets -->
+  <h2>🎯 Top Prop Targets</h2>
+  <div id="prop-targets" class="prop-grid"></div>
+
+  <!-- Roster Browser -->
+  <h2>🧩 Team Rosters</h2>
+  <div id="team-rosters" class="roster-grid"></div>
+
+</section>
+
 
 </body>
 </html>
