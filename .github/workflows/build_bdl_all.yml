@@ -11,10 +11,12 @@ jobs:
 
     env:
       BDL_API_KEY: ${{ secrets.BDL_API_KEY }}
+      SPORTRADAR_API_KEY: ${{ secrets.SPORTRADAR_API_KEY }}
 
     steps:
+      # ✔ ALWAYS USE @v4
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -26,14 +28,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
+      # ✔ SPORTSRADAR BUILDER FIRST
+      - name: Build schedule_master.json from SportRadar
+        run: python scripts/build_master_schedule_sportradar.py
+
       - name: Build rosters.json
         run: python scripts/build_rosters_bdl.py
 
       - name: Build player_stats.json
         run: python scripts/build_player_stats_bdl.py
-
-      - name: Build schedule_master.json from NBA.com
-        run: python scripts/build_master_schedule_nba.py
 
       - name: Merge BDL results into schedule.json
         run: python scripts/update_results_bdl.py
