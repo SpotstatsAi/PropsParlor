@@ -1,10 +1,3 @@
-name: BDL Update → rosters.json + player_stats.json + schedule.json
-
-on:
-  schedule:
-    - cron: "0 10 * * *" # 10:00 UTC daily – adjust if you want
-  workflow_dispatch: {}
-
 jobs:
   build-bdl-all:
     runs-on: ubuntu-latest
@@ -32,13 +25,16 @@ jobs:
       - name: Build player_stats.json
         run: python scripts/build_player_stats_bdl.py
 
-      - name: Build schedule.json
-        run: python scripts/build_schedule_bdl.py
+      - name: Build schedule_master.json from NBA.com
+        run: python scripts/build_master_schedule_nba.py
+
+      - name: Merge BDL results into schedule.json
+        run: python scripts/update_results_bdl.py
 
       - name: Commit updated files
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Actions"
-          git add rosters.json player_stats.json schedule.json
+          git add rosters.json player_stats.json schedule_master.json schedule.json
           git commit -m "BDL Update → rosters.json + player_stats.json + schedule.json" || echo "No changes"
           git push
