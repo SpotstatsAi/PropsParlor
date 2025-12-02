@@ -1,233 +1,145 @@
-function formatISO(date) {
-  return date.toISOString().split("T")[0];
+// YOUR DATA SOURCES
+const ROSTERS_URL = "/rosters.json";
+const PLAYER_STATS_URL = "/player_stats.json";
+const SCHEDULE_URL = "/schedule.json";
+
+// LIVE BDL OVERRIDE
+const BDL_BASE = "https://api.balldontlie.io/v1";
+const BDL_KEY = "YOUR_BDL_KEY_HERE"; // <––– INSERT SECRET WHEN USING SERVER-SIDE ONLY
+
+//-------------------------------------------------------
+// MAIN LOAD
+//-------------------------------------------------------
+document.addEventListener("DOMContentLoaded", async () => {
+    showSection("players-section");
+
+    const [rosters, stats, schedule] = await Promise.all([
+        fetch(ROSTERS_URL).then(r => r.json()),
+        fetch(PLAYER_STATS_URL).then(r => r.json()),
+        fetch(SCHEDULE_URL).then(r => r.json()),
+    ]);
+
+    window.ROSTERS = rosters;
+    window.STATS = stats;
+    window.SCHEDULE = schedule;
+
+    renderPlayers(stats);
+    renderTeams(rosters);
+    renderGames(schedule);
+    renderTrending(stats);
+});
+
+//-------------------------------------------------------
+// NAVIGATION
+//-------------------------------------------------------
+function showSection(id) {
+    document.querySelectorAll(".page-section").forEach(s => {
+        s.classList.remove("visible");
+    });
+    document.getElementById(id).classList.add("visible");
 }
 
-function getDateOffsets(centerDate, daysBack, daysForward) {
-  const result = [];
-  for (let i = -daysBack; i <= daysForward; i++) {
-    const d = new Date(centerDate);
-    d.setDate(d.getDate() + i);
-    result.push(d);
-  }
-  return result;
+//-------------------------------------------------------
+// PLAYERS
+//-------------------------------------------------------
+function renderPlayers(stats) {
+    const grid = document.getElementById("players-grid");
+    grid.innerHTML = "";
+
+    stats.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+            <h2>${p.player_name}</h2>
+            <div class="small">${p.team_abbreviation}</div>
+            <div class="small">PPG: ${p.points}</div>
+            <div class="small">APG: ${p.assists}</div>
+            <div class="small">RPG: ${p.rebounds}</div>
+        `;
+
+        grid.appendChild(card);
+    });
 }
 
-function labelForDate(date, today) {
-  const iso = formatISO(date);
-  const todayIso = formatISO(today);
+//-------------------------------------------------------
+// TEAMS
+//-------------------------------------------------------
+function renderTeams(rosters) {
+    const grid = document.getElementById("teams-grid");
+    grid.innerHTML = "";
 
-  if (iso === todayIso) return "Today";
+    const teams = {};
 
-  const diffMs = date.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0);
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-  if (diffDays === -1) return "Yesterday";
-  if (diffDays === 1) return "Tomorrow";
-
-  const opts = { weekday: "short" };
-  return date.toLocaleDateString(undefined, opts);
-}
-
-async function fetchJson(url) {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch ${url} (${res.status})`);
-  }
-  return res.json();
-}
-
-function renderDateTabs(dates, todayIso, selectedIso, onSelect) {
-  const container = document.getElementById("date-tabs");
-  container.innerHTML = "";
-
-  const today = new Date(todayIso);
-
-  dates.forEach((d) => {
-    const iso = formatISO(d);
-    const pill = document.createElement("button");
-    pill.type = "button";
-    pill.className = "pp-date-pill";
-    if (iso === selectedIso) pill.classList.add("pp-date-active");
-
-    const label = labelForDate(new Date(iso), today);
-    pill.textContent = `${label} · ${iso}`;
-
-    pill.addEventListener("click", () => onSelect(iso));
-
-    container.appendChild(pill);
-  });
-}
-
-function renderGamesList(games) {
-  const container = document.getElementById("games-today");
-  container.innerHTML = "";
-
-  if (!games.length) {
-    container.innerHTML = `<div class="pp-empty">No games scheduled for this date.</div>`;
-    return;
-  }
-
-  games.forEach((g) => {
-    const card = document.createElement("div");
-    card.className = "pp-card pp-card-clickable";
-
-    const tipTime = g.time_et || "TBA";
-    const status = g.status || "Scheduled";
-
-    card.innerHTML = `
-      <div class="pp-game-row">
-        <div class="pp-game-main">
-          <div class="pp-game-teams">
-            ${g.away_team_abbr} @ ${g.home_team_abbr}
-          </div>
-          <div class="pp-game-extra">
-            ${g.away_team_name} @ ${g.home_team_name}
-          </div>
-        </div>
-        <div class="pp-game-side">
-          <div class="pp-tag">${status}</div>
-          <div class="pp-game-extra" style="text-align:right;margin-top:4px;">
-            Tip: ${tipTime}
-          </div>
-        </div>
-      </div>
-    `;
-
-    card.addEventListener("click", () => {
-      renderGameDetails(g);
+    rosters.forEach(p => {
+        if (!teams[p.team_abbreviation]) {
+            teams[p.team_abbreviation] = [];
+        }
+        teams[p.team_abbreviation].push(p.player_name);
     });
 
-    container.appendChild(card);
-  });
+    Object.keys(teams).forEach(team => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+            <h2>${team}</h2>
+            <div class="small">${teams[team].length} players</div>
+        `;
+
+        grid.appendChild(card);
+    });
 }
 
-function renderGameDetails(game) {
-  const panel = document.getElementById("game-details");
+//-------------------------------------------------------
+// GAMES
+//-------------------------------------------------------
+function renderGames(schedule) {
+    const today = new Date().toISOString().split("T")[0];
+    const games = schedule.filter(g => g.game_date === today);
 
-  panel.innerHTML = `
-    <h3 style="margin-top:0;margin-bottom:0.35rem;">
-      ${game.away_team_name} @ ${game.home_team_name}
-    </h3>
-    <p class="pp-game-extra" style="margin-top:0;margin-bottom:0.75rem;">
-      Game ID: ${game.game_id} · ${game.game_date} · ${game.time_et || "TBA"} · Status: ${
-    game.status || "Scheduled"
-  }
-    </p>
+    const list = document.getElementById("games-list");
+    list.innerHTML = "";
 
-    <div class="pp-empty">
-      Matchup + prop engine hooks will attach here:
-      pace, usage, injuries, travel, and green/yellow/red prop flags.
-    </div>
-  `;
+    if (games.length === 0) {
+        list.innerHTML = `<div class="small">No games today.</div>`;
+        return;
+    }
+
+    games.forEach(g => {
+        const card = document.createElement("div");
+        card.className = "game-card";
+
+        card.innerHTML = `
+            <div class="teams">${g.away_team_abbr} @ ${g.home_team_abbr}</div>
+            <div class="time">${g.game_time || "TBD"}</div>
+        `;
+
+        list.appendChild(card);
+    });
 }
 
-async function loadGamesForDate(dateIso) {
-  const container = document.getElementById("games-today");
-  container.innerHTML = `<div class="pp-empty">Loading games for ${dateIso}…</div>`;
+//-------------------------------------------------------
+// TRENDING
+//-------------------------------------------------------
+function renderTrending(stats) {
+    const grid = document.getElementById("trending-grid");
+    grid.innerHTML = "";
 
-  const url = `/api/games/date/${dateIso}`;
-  const games = await fetchJson(url);
-  renderGamesList(games);
-}
+    const top = [...stats]
+        .sort((a, b) => b.points - a.points)
+        .slice(0, 20);
 
-async function init() {
-  const today = new Date();
-  const todayIso = formatISO(today);
+    top.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "card";
 
-  const dates = getDateOffsets(today, 3, 3);
-  let selectedIso = todayIso;
+        card.innerHTML = `
+            <h2>${p.player_name}</h2>
+            <div class="small">${p.team_abbreviation}</div>
+            <div class="small">PPG: ${p.points}</div>
+        `;
 
-  renderDateTabs(dates, todayIso, selectedIso, async (iso) => {
-    selectedIso = iso;
-    renderDateTabs(dates, todayIso, selectedIso, () => {});
-    await loadGamesForDate(selectedIso);
-  });
-
-  await loadGamesForDate(selectedIso);
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  init().catch((err) => {
-    const container = document.getElementById("games-today");
-    container.innerHTML = `<div class="pp-empty">Error: ${err.message}</div>`;
-  });
-});
-async function loadFallbackDashboard() {
-  console.log("Loading fallback dashboard…");
-
-  const statsRes = await fetch("/player_stats.json");
-  const rosterRes = await fetch("/rosters.json");
-
-  const stats = await statsRes.json();
-  const rosters = await rosterRes.json();
-
-  // 1. Trending players (Top 8 scoring averages)
-  const trending = [...stats]
-    .sort((a, b) => b.points_per_game - a.points_per_game)
-    .slice(0, 8);
-
-  renderTrendingPlayers(trending);
-
-  // 2. Prop Targets – players with highest consistency score
-  const propTargets = [...stats]
-    .map(p => ({
-      ...p,
-      consistency:
-        (p.points_per_game * 0.5) +
-        (p.rebounds_per_game * 0.3) +
-        (p.assists_per_game * 0.2)
-    }))
-    .sort((a, b) => b.consistency - a.consistency)
-    .slice(0, 8);
-
-  renderPropTargets(propTargets);
-
-  // 3. Rosters – grouped by team
-  const teams = {};
-  for (const p of rosters) {
-    if (!teams[p.team_abbreviation]) teams[p.team_abbreviation] = [];
-    teams[p.team_abbreviation].push(p);
-  }
-
-  renderTeamRosters(teams);
-
-  document.getElementById("no-games-dashboard").classList.remove("hidden");
-}
-
-// UI rendering functions
-function renderTrendingPlayers(players) {
-  const div = document.getElementById("trending-players");
-  div.innerHTML = players.map(p => `
-    <div class="player-card">
-      <h3>${p.first_name} ${p.last_name}</h3>
-      <div class="player-stat">PPG: ${p.points_per_game}</div>
-      <div class="player-stat">REB: ${p.rebounds_per_game}</div>
-      <div class="player-stat">AST: ${p.assists_per_game}</div>
-    </div>
-  `).join("");
-}
-
-function renderPropTargets(players) {
-  const div = document.getElementById("prop-targets");
-  div.innerHTML = players.map(p => `
-    <div class="player-card">
-      <h3>${p.first_name} ${p.last_name}</h3>
-      <div class="player-stat">Consistency: ${p.consistency.toFixed(1)}</div>
-      <div class="player-stat">PPG: ${p.points_per_game}</div>
-      <div class="player-stat">RPG: ${p.rebounds_per_game}</div>
-      <div class="player-stat">APG: ${p.assists_per_game}</div>
-    </div>
-  `).join("");
-}
-
-function renderTeamRosters(teams) {
-  const div = document.getElementById("team-rosters");
-  div.innerHTML = Object.entries(teams).map(([team, players]) => `
-    <div class="team-card">
-      <h3>${team}</h3>
-      <ul>
-        ${players.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join("")}
-      </ul>
-    </div>
-  `).join("");
+        grid.appendChild(card);
+    });
 }
