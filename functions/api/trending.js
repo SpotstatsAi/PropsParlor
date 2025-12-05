@@ -1,15 +1,18 @@
 // functions/api/trending.js
 //
-// Trending players endpoint using player_stats.json + rosters.json.
+// Trending players from player_stats.json (aggregate per-player file).
 //
-// For each player, looks at their most recent N games and computes an
-// average of a chosen stat (pts by default), then ranks descending.
+// Uses the "last5_" fields where available.
+// For stat=pts, score = last5_pts (fallback pts).
+// For stat=reb,  score = last5_reb (fallback reb).
+// For stat=ast,  score = last5_ast (fallback ast).
+// For stat=usage, score = usage.
 //
 // Usage examples:
 //   /api/trending
-//   /api/trending?stat=pts&last_n=5&min_games=3&limit=50
+//   /api/trending?stat=pts&limit=30
 //   /api/trending?team=LAL
-//   /api/trending?position=G
+//   /api/trending?position=G   <-- position requires rosters.json
 
 export async function onRequest(context) {
   const { request } = context;
@@ -22,23 +25,13 @@ export async function onRequest(context) {
     const url = new URL(request.url);
     const sp = url.searchParams;
 
-    const stat = (sp.get("stat") || "pts").toLowerCase();
-    const lastN = sp.get("last_n")
-      ? clampInt(sp.get("last_n"), 2, 20)
-      : 5;
-    const minGames = sp.get("min_games")
-      ? clampInt(sp.get("min_games"), 2, lastN)
-      : 3;
+    const stat = (sp.get("stat") || "pts").toLowerCase(); // pts | reb | ast | usage
     const limit = sp.get("limit")
       ? clampInt(sp.get("limit"), 1, 200)
       : 50;
 
-    const teamFilter = sp.get("team")
-      ? String(sp.get("team")).trim().toUpperCase()
-      : "";
-    const posFilter = sp.get("position")
-      ? String(sp.get("position")).trim().toUpperCase()
-      : "";
+    const teamFilter = (sp.get("team") || "").trim().toUpperCase();
+    const posFilter = (sp.get("position") || "").trim().toUpperCase();
 
     // Load stats
     const statsUrl = new URL("/player_stats.json", url);
@@ -51,67 +44,56 @@ export async function onRequest(context) {
       );
     }
     const statsRaw = await statsRes.json();
-    const rowsRaw = extractRowsFromStatsPayload(statsRaw);
-    const rows = rowsRaw.map(normalizeRow).filter((r) => !!r);
+    const players = normalizePlayersFromMap(statsRaw);
 
-    // Load rosters for position + official team if present
+    // Load rosters for team/pos filters
     const rosters = await loadRosters(url);
     const rosterIndex = buildRosterIndex(rosters);
 
-    const byPlayer = groupByPlayer(rows);
-
     const trending = [];
 
-    for (const [playerId, entries] of byPlayer.entries()) {
-      // Sort by date descending
-      entries.sort((a, b) => (b.gameDate || "").localeCompare(a.gameDate || ""));
+    for (const p of players) {
+      const roster = rosterIndex.get(p.id) || rosterIndex.get(p.name) || null;
+      const team = roster ? roster.team : p.team;
+      const pos = roster ? roster.pos : null;
 
-      const slice = entries.slice(0, lastN);
-      const played = slice.filter((e) => e.stats[stat] != null);
-
-      if (played.length < minGames) continue;
-
-      const avg =
-        played.reduce((sum, e) => sum + e.stats[stat], 0) / played.length;
-
-      const roster = rosterIndex.get(playerId) || null;
-
-      if (teamFilter && (!roster || roster.team !== teamFilter)) continue;
+      if (teamFilter && team !== teamFilter) continue;
       if (
         posFilter &&
-        (!roster ||
-          !roster.pos ||
-          !roster.pos.toUpperCase().includes(posFilter))
+        (!pos || !pos.toUpperCase().includes(posFilter))
       )
         continue;
 
+      const score = computeTrendingScore(p, stat);
+      if (score == null) continue;
+
       trending.push({
-        playerId,
-        name: entries[0].name,
-        team: roster ? roster.team : entries[0].team,
-        pos: roster ? roster.pos : null,
-        lastNGames: played.length,
-        stat: stat,
-        avg,
-        recent: slice.map((e) => ({
-          gameDate: e.gameDate,
-          value: e.stats[stat],
-          team: e.team,
-          raw: e.raw,
-        })),
+        playerId: p.id,
+        name: p.name,
+        team,
+        pos,
+        stat,
+        score,
+        games: p.games,
+        season: p.season,
+        pts: p.pts,
+        reb: p.reb,
+        ast: p.ast,
+        last5_pts: p.last5_pts,
+        last5_reb: p.last5_reb,
+        last5_ast: p.last5_ast,
+        usage: p.usage,
       });
     }
 
-    trending.sort((a, b) => b.avg - a.avg);
+    trending.sort((a, b) => b.score - a.score);
 
     const limited = trending.slice(0, limit);
 
     const meta = {
-      totalPlayers: byPlayer.size,
+      totalPlayers: players.length,
       trendingPlayers: limited.length,
       stat,
-      lastN,
-      minGames,
       limit,
       filters: {
         team: teamFilter || "",
@@ -154,83 +136,52 @@ function clampInt(v, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
-function extractRowsFromStatsPayload(raw) {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw.data)) return raw.data;
-  if (typeof raw === "object") {
-    for (const value of Object.values(raw)) {
-      if (Array.isArray(value)) return value;
-    }
-  }
-  return [];
-}
-
-function parseDateFromRow(row) {
-  const candidates = ["game_date", "date", "day", "dt"];
-  for (const key of candidates) {
-    if (row[key]) {
-      const raw = String(row[key]);
-      if (raw.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(raw)) {
-        return raw.slice(0, 10);
-      }
-    }
-  }
-  return null;
-}
-
 function numberOrNull(v) {
   if (v === undefined || v === null || v === "") return null;
   const n = Number(v);
   return Number.isNaN(n) ? null : n;
 }
 
-function normalizeRow(raw) {
-  if (!raw) return null;
+function normalizePlayersFromMap(raw) {
+  if (!raw || typeof raw !== "object") return [];
 
-  const playerId =
-    raw.player_id ||
-    (raw.player && raw.player.id) ||
-    raw.id ||
-    null;
+  const players = [];
+  for (const [name, v] of Object.entries(raw)) {
+    if (!v || typeof v !== "object") continue;
+    const id =
+      v.player_id != null ? String(v.player_id) : name;
+    const team = v.team ? String(v.team).toUpperCase() : "";
+    players.push({
+      id,
+      name,
+      team,
+      season: v.season != null ? Number(v.season) : null,
+      games: numberOrNull(v.games),
+      pts: numberOrNull(v.pts),
+      reb: numberOrNull(v.reb),
+      ast: numberOrNull(v.ast),
+      last5_pts: numberOrNull(v.last5_pts),
+      last5_reb: numberOrNull(v.last5_reb),
+      last5_ast: numberOrNull(v.last5_ast),
+      usage: numberOrNull(v.usage),
+      raw: v,
+    });
+  }
+  return players;
+}
 
-  const firstName =
-    (raw.player && (raw.player.first_name || raw.player.firstName)) ||
-    raw.first_name ||
-    raw.firstName ||
-    "";
-  const lastName =
-    (raw.player && (raw.player.last_name || raw.player.lastName)) ||
-    raw.last_name ||
-    raw.lastName ||
-    "";
-
-  const name = raw.player_name || `${firstName} ${lastName}`.trim();
-
-  const teamAbbr =
-    raw.team ||
-    raw.team_abbr ||
-    (raw.team && raw.team.abbreviation) ||
-    raw.team_abbreviation ||
-    "";
-
-  const gameDate = parseDateFromRow(raw);
-
-  return {
-    playerId: playerId != null ? String(playerId) : null,
-    name,
-    team: teamAbbr ? String(teamAbbr).toUpperCase() : "",
-    gameDate,
-    raw,
-    stats: {
-      pts: numberOrNull(raw.pts ?? raw.points),
-      reb: numberOrNull(raw.reb ?? raw.rebounds),
-      ast: numberOrNull(raw.ast ?? raw.assists),
-      stl: numberOrNull(raw.stl ?? raw.steals),
-      blk: numberOrNull(raw.blk ?? raw.blocks),
-      fg3m: numberOrNull(raw.fg3m ?? raw.threes_made),
-    },
-  };
+function computeTrendingScore(p, stat) {
+  switch (stat) {
+    case "reb":
+      return p.last5_reb ?? p.reb;
+    case "ast":
+      return p.last5_ast ?? p.ast;
+    case "usage":
+      return p.usage;
+    case "pts":
+    default:
+      return p.last5_pts ?? p.pts;
+  }
 }
 
 async function loadRosters(baseUrl) {
@@ -251,28 +202,28 @@ function buildRosterIndex(rosters) {
   const idx = new Map();
   rosters.forEach((p) => {
     const id =
-      p.id != null ? String(p.id) : p.player_id != null ? String(p.player_id) : null;
-    if (!id) return;
+      p.id != null ? String(p.id) :
+      p.player_id != null ? String(p.player_id) :
+      null;
+    const name = p.name || `${p.first_name || ""} ${p.last_name || ""}`.trim();
     const team =
       p.team ||
       p.team_abbr ||
       (p.team && p.team.abbreviation) ||
       "";
     const pos = p.pos || p.position || "";
-    idx.set(id, {
-      team: team ? String(team).toUpperCase() : "",
-      pos,
-    });
+    if (id) {
+      idx.set(id, {
+        team: team ? String(team).toUpperCase() : "",
+        pos,
+      });
+    }
+    if (name) {
+      idx.set(name, {
+        team: team ? String(team).toUpperCase() : "",
+        pos,
+      });
+    }
   });
   return idx;
-}
-
-function groupByPlayer(rows) {
-  const map = new Map();
-  rows.forEach((r) => {
-    if (!r.playerId) return;
-    if (!map.has(r.playerId)) map.set(r.playerId, []);
-    map.get(r.playerId).push(r);
-  });
-  return map;
 }
