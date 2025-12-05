@@ -1,5 +1,5 @@
 // app.js
-// Frontend wiring for PropsParlor dashboard.
+// Frontend wiring for PropsParlor dashboard with charts + prop tiers.
 
 document.addEventListener("DOMContentLoaded", () => {
   setupNav();
@@ -401,7 +401,6 @@ function renderPlayerGrid() {
   const cards = players.map((p) => renderPlayerCard(p)).join("");
   grid.innerHTML = cards;
 
-  // clicking card opens modal
   const cardEls = grid.querySelectorAll(".player-card");
   cardEls.forEach((card) => {
     card.addEventListener("click", () => {
@@ -800,13 +799,19 @@ function renderTrendRow(p, statKey) {
   const team = escapeHtml(p.team || "");
   const pos = escapeHtml(p.pos || "");
   const stat = p.stat || statKey || "pts";
-  const val = p.score != null ? p.score.toFixed(1) : "–";
+  const scoreNum = p.score != null ? Number(p.score) : null;
+  const val = scoreNum != null && !Number.isNaN(scoreNum)
+    ? scoreNum.toFixed(1)
+    : "–";
   const id =
     p.player_id != null
       ? String(p.player_id)
       : p.id != null
       ? String(p.id)
       : "";
+
+  const strength = Math.max(0, Math.min(1, (scoreNum ?? 0) / 10)); // crude normalize
+  const widthPct = Math.round(strength * 100);
 
   return `
     <div class="trend-row"
@@ -820,6 +825,9 @@ function renderTrendRow(p, statKey) {
       </div>
       <div class="trend-meta">
         <div>${val} ${stat.toUpperCase()}</div>
+        <div class="trend-score-wrap">
+          <div class="trend-score-bar" style="width:${widthPct}%;"></div>
+        </div>
       </div>
     </div>
   `;
@@ -919,7 +927,11 @@ async function loadOverviewEdges(stat) {
         const name = escapeHtml(p.name);
         const team = escapeHtml(p.team || "");
         const pos = escapeHtml(p.pos || "");
-        const delta = p.delta != null ? p.delta.toFixed(1) : "–";
+        const deltaNum = p.delta != null ? Number(p.delta) : null;
+        const deltaText =
+          deltaNum != null && !Number.isNaN(deltaNum)
+            ? deltaNum.toFixed(1)
+            : "–";
         const recent = p.recent != null ? p.recent.toFixed(1) : "–";
         const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
         const id =
@@ -928,6 +940,8 @@ async function loadOverviewEdges(stat) {
             : p.id != null
             ? String(p.id)
             : "";
+
+        const deltaBadge = buildDeltaBadge(deltaNum, deltaText);
 
         return `
           <div class="overview-row"
@@ -942,7 +956,7 @@ async function loadOverviewEdges(stat) {
             <div class="overview-row-meta">
               <div class="team-sub">Recent: ${recent}</div>
               <div class="team-sub">Season: ${season}</div>
-              <div class="badge-soft">Δ ${delta}</div>
+              ${deltaBadge}
             </div>
           </div>
         `;
@@ -980,13 +994,20 @@ async function loadOverviewTrending(stat) {
         const name = escapeHtml(p.name);
         const team = escapeHtml(p.team || "");
         const pos = escapeHtml(p.pos || "");
-        const score = p.score != null ? p.score.toFixed(1) : "–";
+        const scoreNum = p.score != null ? Number(p.score) : null;
+        const scoreText =
+          scoreNum != null && !Number.isNaN(scoreNum)
+            ? scoreNum.toFixed(1)
+            : "–";
         const id =
           p.player_id != null
             ? String(p.player_id)
             : p.id != null
             ? String(p.id)
             : "";
+
+        const strength = Math.max(0, Math.min(1, (scoreNum ?? 0) / 10));
+        const widthPct = Math.round(strength * 100);
 
         return `
           <div class="overview-row"
@@ -999,7 +1020,10 @@ async function loadOverviewTrending(stat) {
               <span class="muted">${team}${pos ? " • " + pos : ""}</span>
             </div>
             <div class="overview-row-meta">
-              <div>${score} ${stat.toUpperCase()}</div>
+              <div>${scoreText} ${stat.toUpperCase()}</div>
+              <div class="trend-score-wrap">
+                <div class="trend-score-bar" style="width:${widthPct}%;"></div>
+              </div>
             </div>
           </div>
         `;
@@ -1056,13 +1080,19 @@ async function loadOverviewEdgeBoard() {
         const statLabel = labels[p.stat] || p.stat.toUpperCase();
         const recent = p.recent != null ? p.recent.toFixed(1) : "–";
         const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
-        const delta = p.delta != null ? p.delta.toFixed(1) : "–";
+        const deltaNum = p.delta != null ? Number(p.delta) : null;
+        const deltaText =
+          deltaNum != null && !Number.isNaN(deltaNum)
+            ? deltaNum.toFixed(1)
+            : "–";
         const id =
           p.player_id != null
             ? String(p.player_id)
             : p.id != null
             ? String(p.id)
             : "";
+
+        const deltaBadge = buildDeltaBadge(deltaNum, deltaText);
 
         return `
           <div class="overview-row"
@@ -1077,7 +1107,7 @@ async function loadOverviewEdgeBoard() {
             <div class="overview-row-meta">
               <div class="team-sub">${statLabel}</div>
               <div class="team-sub">Recent: ${recent} • Season: ${season}</div>
-              <div class="badge-soft">Δ ${delta}</div>
+              ${deltaBadge}
             </div>
           </div>
         `;
@@ -1228,13 +1258,19 @@ function renderEdgesTable() {
       const pos = escapeHtml(p.pos || "");
       const recent = p.recent != null ? p.recent.toFixed(1) : "–";
       const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
-      const delta = p.delta != null ? p.delta.toFixed(1) : "–";
+      const deltaNum = p.delta != null ? Number(p.delta) : null;
+      const deltaText =
+        deltaNum != null && !Number.isNaN(deltaNum)
+          ? deltaNum.toFixed(1)
+          : "–";
       const id =
         p.player_id != null
           ? String(p.player_id)
           : p.id != null
           ? String(p.id)
           : "";
+
+      const deltaBadge = buildDeltaBadge(deltaNum, deltaText);
 
       return `
         <tr data-player-id="${id}"
@@ -1247,7 +1283,7 @@ function renderEdgesTable() {
           <td>${label}</td>
           <td>${recent}</td>
           <td>${season}</td>
-          <td>${delta}</td>
+          <td>${deltaBadge}</td>
         </tr>
       `;
     })
@@ -1259,6 +1295,7 @@ function renderEdgesTable() {
 /* ---------------- PLAYER MODAL ---------------- */
 
 let currentPlayerModal = null;
+let currentPlayerDetailMode = 10; // 10 or 50
 
 function setupPlayerModal() {
   const modal = document.getElementById("player-modal");
@@ -1266,26 +1303,31 @@ function setupPlayerModal() {
 
   const closeBtn = document.getElementById("modal-close");
   const backdrop = modal.querySelector(".modal-backdrop");
+  const detailBtn = document.getElementById("player-detail-btn");
 
   if (closeBtn) closeBtn.addEventListener("click", closePlayerModal);
   if (backdrop) backdrop.addEventListener("click", closePlayerModal);
 
-  const modalBody = modal.querySelector(".modal-body");
-  if (modalBody && !document.getElementById("player-detail-card")) {
-    const detailDiv = document.createElement("div");
-    detailDiv.id = "player-detail-card";
-    detailDiv.className = "player-detail-card hidden";
-    modalBody.appendChild(detailDiv);
-  }
-
-  const detailBtn = document.getElementById("player-detail-btn");
   if (detailBtn) {
     detailBtn.addEventListener("click", () => {
       if (!currentPlayerModal || !currentPlayerModal.id) return;
-      openPlayerDetailCard(currentPlayerModal);
+      const summaryEl = document.getElementById("modal-summary");
+      const tbody = document.getElementById("modal-stats-rows");
+      currentPlayerDetailMode = currentPlayerDetailMode === 10 ? 50 : 10;
+      detailBtn.textContent =
+        currentPlayerDetailMode === 10
+          ? "View Detail Page"
+          : "Back to last 10";
+      loadPlayerStats(
+        currentPlayerModal.id,
+        summaryEl,
+        tbody,
+        currentPlayerDetailMode
+      );
     });
   }
 
+  // global click fallback for any element with data-player-id that's not a card
   document.addEventListener("click", (evt) => {
     if (evt.target.closest(".player-card")) return;
 
@@ -1308,6 +1350,7 @@ function openPlayerModal(player) {
   if (!modal) return;
 
   currentPlayerModal = player;
+  currentPlayerDetailMode = 10;
 
   modal.classList.remove("hidden");
 
@@ -1316,17 +1359,9 @@ function openPlayerModal(player) {
   const summaryEl = document.getElementById("modal-summary");
   const tbody = document.getElementById("modal-stats-rows");
   const detailBtn = document.getElementById("player-detail-btn");
-  const detailCard = document.getElementById("player-detail-card");
+  const chartsContainer = document.getElementById("player-modal-charts");
 
-  if (detailCard) {
-    detailCard.classList.add("hidden");
-    detailCard.innerHTML = "";
-    detailCard._propEdges = null;
-  }
-  if (detailBtn) {
-    detailBtn.textContent = "View Detail Page";
-    detailBtn.disabled = false;
-  }
+  if (chartsContainer) chartsContainer.innerHTML = "";
 
   const name = player.name || "Player";
   const teamAbbr = player.team || "";
@@ -1338,7 +1373,8 @@ function openPlayerModal(player) {
         <img
           src="${logoUrl}"
           alt="${escapeHtml(teamAbbr)} logo"
-          class="modal-team-logo team-logo-img"
+          class="player-badge-logo"
+          style="width:20px;height:20px;margin-right:6px;"
           onerror="this.remove();"
         />
         <span>${escapeHtml(name)}</span>
@@ -1362,6 +1398,9 @@ function openPlayerModal(player) {
     tbody.innerHTML =
       '<tr><td colspan="6" class="muted">Loading...</td></tr>';
   }
+  if (detailBtn) {
+    detailBtn.textContent = "View Detail Page";
+  }
 
   if (!player.id) {
     if (summaryEl) summaryEl.textContent = "No player id available.";
@@ -1372,7 +1411,7 @@ function openPlayerModal(player) {
     return;
   }
 
-  loadPlayerStats(player.id, summaryEl, tbody, 10);
+  loadPlayerStats(player.id, summaryEl, tbody, currentPlayerDetailMode);
 }
 
 function closePlayerModal() {
@@ -1399,6 +1438,7 @@ async function loadPlayerStats(playerId, summaryEl, tbody, lastN = 10) {
         tbody.innerHTML =
           '<tr><td colspan="6" class="muted">No rows.</td></tr>';
       }
+      renderPlayerModalCharts([]);
       return;
     }
 
@@ -1431,6 +1471,8 @@ async function loadPlayerStats(playerId, summaryEl, tbody, lastN = 10) {
       })
       .join("");
     if (tbody) tbody.innerHTML = trHtml;
+
+    renderPlayerModalCharts(rows);
   } catch (err) {
     console.error(err);
     if (summaryEl) summaryEl.textContent = "Error loading stats.";
@@ -1438,268 +1480,21 @@ async function loadPlayerStats(playerId, summaryEl, tbody, lastN = 10) {
       tbody.innerHTML =
         '<tr><td colspan="6" class="muted">Error loading stats.</td></tr>';
     }
+    renderPlayerModalCharts([]);
   }
 }
 
-async function openPlayerDetailCard(player) {
-  const detailCard = document.getElementById("player-detail-card");
-  const summaryEl = document.getElementById("modal-summary");
-  const tbody = document.getElementById("modal-stats-rows");
-  const detailBtn = document.getElementById("player-detail-btn");
-  if (!detailCard || !summaryEl || !tbody) return;
+function renderPlayerModalCharts(rows) {
+  const container = document.getElementById("player-modal-charts");
+  if (!container) return;
 
-  if (detailBtn) {
-    detailBtn.textContent = "Loading detail…";
-    detailBtn.disabled = true;
+  if (!rows || !rows.length) {
+    container.innerHTML = "";
+    return;
   }
 
-  try {
-    const url = `/api/stats?player_id=${encodeURIComponent(
-      player.id
-    )}&last_n=50`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("stats fetch failed");
-    const json = await res.json();
-    const rows = json.data || [];
-    const meta = json.meta || {};
-
-    if (!rows.length) {
-      summaryEl.textContent = "No extended stats available.";
-      detailCard.innerHTML =
-        '<div class="muted">No additional detail for this player.</div>';
-      detailCard.classList.remove("hidden");
-      return;
-    }
-
-    const teamMeta = meta.team || meta.teamAbbr || player.team || "";
-    const sampleSize = rows.length;
-
-    const last10 = rows.slice(0, 10);
-    const last5 = rows.slice(0, 5);
-
-    const makeAvg = (list, statKey) => {
-      if (!list.length) return null;
-      let sum = 0;
-      let count = 0;
-      for (const r of list) {
-        let v = r[statKey];
-        if (v == null && statKey === "reb") v = r.reb_tot;
-        if (v == null) continue;
-        if (typeof v === "string") v = parseFloat(v);
-        if (Number.isNaN(v)) continue;
-        sum += v;
-        count += 1;
-      }
-      if (!count) return null;
-      return sum / count;
-    };
-
-    const stats = ["pts", "reb", "ast"];
-    const labels = { pts: "PTS", reb: "REB", ast: "AST" };
-    const rowsSummary = stats.map((key) => {
-      const season = makeAvg(rows, key);
-      const l10 = makeAvg(last10, key);
-      const l5 = makeAvg(last5, key);
-      return {
-        key,
-        label: labels[key] || key.toUpperCase(),
-        season,
-        l10,
-        l5,
-      };
-    });
-
-    const trHtml = rows
-      .map((r) => {
-        const date = r.game_date || r.date || "";
-        const opp = r.opponent || r.opp || "";
-        const min =
-          r.min != null ? r.min : r.minutes != null ? r.minutes : "";
-        const pts = r.pts != null ? r.pts : "";
-        const reb = r.reb != null ? r.reb : r.reb_tot != null ? r.reb_tot : "";
-        const ast = r.ast != null ? r.ast : "";
-
-        return `<tr>
-          <td class="cell-left">${escapeHtml(String(date).slice(5))}</td>
-          <td class="cell-left">${escapeHtml(opp)}</td>
-          <td>${escapeHtml(min)}</td>
-          <td>${escapeHtml(pts)}</td>
-          <td>${escapeHtml(reb)}</td>
-          <td>${escapeHtml(ast)}</td>
-        </tr>`;
-      })
-      .join("");
-    tbody.innerHTML = trHtml;
-
-    summaryEl.textContent = `Last ${sampleSize} games${
-      teamMeta ? ` • ${teamMeta}` : ""
-    }`;
-
-    const snapshotRows = rowsSummary
-      .map((row) => {
-        const s =
-          row.season != null ? row.season.toFixed(1) : "&mdash;";
-        const l10 = row.l10 != null ? row.l10.toFixed(1) : "&mdash;";
-        const l5 = row.l5 != null ? row.l5.toFixed(1) : "&mdash;";
-        return `
-          <div class="detail-snapshot-row">
-            <span class="detail-snapshot-label">${row.label}</span>
-            <span class="detail-snapshot-val">Season: <b>${s}</b></span>
-            <span class="detail-snapshot-val">L10: <b>${l10}</b></span>
-            <span class="detail-snapshot-val">L5: <b>${l5}</b></span>
-          </div>
-        `;
-      })
-      .join("");
-
-    const tableRows = rowsSummary
-      .map((row) => {
-        const s =
-          row.season != null ? row.season.toFixed(1) : "&mdash;";
-        const l10 = row.l10 != null ? row.l10.toFixed(1) : "&mdash;";
-        const l5 = row.l5 != null ? row.l5.toFixed(1) : "&mdash;";
-        return `
-          <tr>
-            <td class="cell-left">${row.label}</td>
-            <td>${s}</td>
-            <td>${l10}</td>
-            <td>${l5}</td>
-          </tr>
-        `;
-      })
-      .join("");
-
-    const logoUrl = getTeamLogoUrl(player.team);
-    const safeName = escapeHtml(player.name || "");
-    const safeTeam = escapeHtml(player.team || "");
-    const safePos = escapeHtml(player.pos || "");
-
-    detailCard.innerHTML = `
-      <div class="player-detail-grid">
-        <section class="player-detail-left">
-          <header class="player-detail-header">
-            <div class="player-detail-main">
-              <div class="player-detail-name-row">
-                ${
-                  logoUrl
-                    ? `<img src="${logoUrl}" alt="${safeTeam} logo"
-                             class="detail-team-logo team-logo-img"
-                             onerror="this.style.display='none';" />`
-                    : ""
-                }
-                <div class="player-detail-name-block">
-                  <div class="player-detail-name">${safeName}</div>
-                  <div class="player-detail-meta">
-                    ${safeTeam || "FA"}${
-      safePos ? " • " + safePos : ""
-    }${player.id ? " • ID " + player.id : ""}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="player-detail-idpill">
-              Sample: ${sampleSize} GP
-            </div>
-          </header>
-
-          <section class="player-detail-section">
-            <div class="player-detail-section-title">Season Snapshot</div>
-            <div class="player-detail-snapshot">
-              ${snapshotRows}
-            </div>
-          </section>
-
-          <section class="player-detail-section">
-            <div class="player-detail-section-title">Season Averages</div>
-            <div class="player-detail-averages-wrap">
-              <table class="stats-table detail-averages-table">
-                <thead>
-                  <tr>
-                    <th class="cell-left">Stat</th>
-                    <th>Season</th>
-                    <th>L10</th>
-                    <th>L5</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${tableRows}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section class="player-detail-section">
-            <div class="player-detail-section-title">Recent Trends</div>
-            <div class="trend-charts">
-              <div class="trend-chart-row">
-                <span class="trend-chart-label">PTS</span>
-                <canvas class="trend-chart" data-chart-stat="pts"></canvas>
-              </div>
-              <div class="trend-chart-row">
-                <span class="trend-chart-label">REB</span>
-                <canvas class="trend-chart" data-chart-stat="reb"></canvas>
-              </div>
-              <div class="trend-chart-row">
-                <span class="trend-chart-label">AST</span>
-                <canvas class="trend-chart" data-chart-stat="ast"></canvas>
-              </div>
-            </div>
-          </section>
-
-          <section class="player-detail-section prop-preview-section">
-            <div class="player-detail-section-title">Prop Preview</div>
-            <div class="prop-preview-controls">
-              <button class="chip-toggle prop-chip active" data-prop-stat="all">All</button>
-              <button class="chip-toggle prop-chip" data-prop-stat="pts">PTS</button>
-              <button class="chip-toggle prop-chip" data-prop-stat="reb">REB</button>
-              <button class="chip-toggle prop-chip" data-prop-stat="ast">AST</button>
-            </div>
-            <div class="prop-preview-list" id="prop-preview-list">
-              <div class="muted">Loading props…</div>
-            </div>
-          </section>
-        </section>
-
-        <section class="player-detail-right">
-          <header class="player-detail-section">
-            <div class="player-detail-section-title">Recent Games</div>
-            <div class="player-detail-section-sub">
-              Full sample from BallDontLie
-            </div>
-          </header>
-        </section>
-      </div>
-    `;
-
-    detailCard.classList.remove("hidden");
-
-    buildPlayerTrendCharts(rows, detailCard);
-    loadPlayerPropPreview(player, detailCard);
-
-    if (detailBtn) {
-      detailBtn.textContent = "Detail loaded";
-      detailBtn.disabled = true;
-    }
-  } catch (err) {
-    console.error(err);
-    summaryEl.textContent = "Error loading extended stats.";
-    detailCard.innerHTML =
-      '<div class="muted">Error loading detail for this player.</div>';
-    detailCard.classList.remove("hidden");
-    if (detailBtn) {
-      detailBtn.textContent = "View Detail Page";
-      detailBtn.disabled = false;
-    }
-  }
-}
-
-// mini sparkline charts using last ~15 games
-function buildPlayerTrendCharts(rows, detailCard) {
-  const canvases = detailCard.querySelectorAll(".trend-chart");
-  if (!canvases.length) return;
-
-  const sample = rows.slice(0, 15).reverse(); // oldest left
-  const valuesByStat = { pts: [], reb: [], ast: [] };
+  const sample = rows.slice(0, 15).reverse();
+  const series = { pts: [], reb: [], ast: [] };
 
   sample.forEach((r) => {
     const pts = r.pts != null ? Number(r.pts) : null;
@@ -1707,14 +1502,33 @@ function buildPlayerTrendCharts(rows, detailCard) {
     const reb = rebRaw != null ? Number(rebRaw) : null;
     const ast = r.ast != null ? Number(r.ast) : null;
 
-    if (pts != null && !Number.isNaN(pts)) valuesByStat.pts.push(pts);
-    if (reb != null && !Number.isNaN(reb)) valuesByStat.reb.push(reb);
-    if (ast != null && !Number.isNaN(ast)) valuesByStat.ast.push(ast);
+    if (pts != null && !Number.isNaN(pts)) series.pts.push(pts);
+    if (reb != null && !Number.isNaN(reb)) series.reb.push(reb);
+    if (ast != null && !Number.isNaN(ast)) series.ast.push(ast);
   });
 
+  container.innerHTML = `
+    <div class="player-modal-charts-title">
+      Recent trend (last ${sample.length} games)
+    </div>
+    <div class="player-modal-chart-row">
+      <span class="player-modal-chart-label">PTS</span>
+      <canvas class="player-modal-chart-canvas" data-stat="pts"></canvas>
+    </div>
+    <div class="player-modal-chart-row">
+      <span class="player-modal-chart-label">REB</span>
+      <canvas class="player-modal-chart-canvas" data-stat="reb"></canvas>
+    </div>
+    <div class="player-modal-chart-row">
+      <span class="player-modal-chart-label">AST</span>
+      <canvas class="player-modal-chart-canvas" data-stat="ast"></canvas>
+    </div>
+  `;
+
+  const canvases = container.querySelectorAll(".player-modal-chart-canvas");
   canvases.forEach((canvas) => {
-    const key = canvas.dataset.chartStat;
-    const values = valuesByStat[key] || [];
+    const stat = canvas.dataset.stat;
+    const values = series[stat] || [];
     drawSparkline(canvas, values);
   });
 }
@@ -1722,23 +1536,22 @@ function buildPlayerTrendCharts(rows, detailCard) {
 function drawSparkline(canvas, values) {
   const ctx = canvas.getContext("2d");
   const logicalWidth = canvas.clientWidth || 160;
-  const logicalHeight = canvas.clientHeight || 60;
+  const logicalHeight = canvas.clientHeight || 52;
   const dpr = window.devicePixelRatio || 1;
 
   canvas.width = logicalWidth * dpr;
   canvas.height = logicalHeight * dpr;
-
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
-  if (!values.length) return;
+  if (!values || !values.length) return;
 
   const max = Math.max(...values);
   const min = Math.min(...values);
   const span = max - min || 1;
+
   const paddingX = 6;
   const paddingY = 6;
-
   const w = logicalWidth - paddingX * 2;
   const h = logicalHeight - paddingY * 2;
 
@@ -1753,8 +1566,8 @@ function drawSparkline(canvas, values) {
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = "#ffb74d";
   ctx.lineWidth = 2;
+  ctx.strokeStyle = "#ffb74d";
   ctx.stroke();
 
   ctx.beginPath();
@@ -1762,136 +1575,18 @@ function drawSparkline(canvas, values) {
     const norm = (v - min) / span;
     const x = paddingX + i * stepX;
     const y = paddingY + (1 - norm) * h;
-    ctx.lineTo(x, y);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
   });
   ctx.lineTo(paddingX + (values.length - 1) * stepX, paddingY + h);
   ctx.lineTo(paddingX, paddingY + h);
   ctx.closePath();
+
   const grad = ctx.createLinearGradient(0, paddingY, 0, paddingY + h);
   grad.addColorStop(0, "rgba(255,183,77,0.35)");
   grad.addColorStop(1, "rgba(255,183,77,0)");
   ctx.fillStyle = grad;
   ctx.fill();
-}
-
-async function loadPlayerPropPreview(player, detailCard) {
-  const listEl = detailCard.querySelector("#prop-preview-list");
-  const chipEls = detailCard.querySelectorAll("[data-prop-stat]");
-  if (!listEl) return;
-
-  listEl.innerHTML = `<div class="muted">Loading props…</div>`;
-
-  const stats = ["pts", "reb", "ast"];
-
-  try {
-    const results = await Promise.allSettled(
-      stats.map((s) =>
-        fetch(`/api/edges?stat=${encodeURIComponent(s)}&limit=200`).then((r) =>
-          r.ok ? r.json() : Promise.reject(new Error("edges fetch failed"))
-        )
-      )
-    );
-
-    const allEdges = [];
-    results.forEach((res, idx) => {
-      if (res.status !== "fulfilled") return;
-      const data = res.value.data || [];
-      const stat = stats[idx];
-      data.forEach((row) => {
-        allEdges.push({ ...row, stat });
-      });
-    });
-
-    const playerIdStr = player.id != null ? String(player.id) : "";
-    const matches = allEdges.filter((e) => {
-      const eid =
-        e.player_id != null
-          ? String(e.player_id)
-          : e.id != null
-          ? String(e.id)
-          : "";
-      if (playerIdStr && eid && eid === playerIdStr) return true;
-      if (
-        player.name &&
-        e.name &&
-        player.name.toLowerCase() === String(e.name).toLowerCase() &&
-        (!player.team || !e.team || player.team === e.team)
-      ) {
-        return true;
-      }
-      return false;
-    });
-
-    if (!matches.length) {
-      listEl.innerHTML =
-        '<div class="muted">No props currently match these filters.</div>';
-      return;
-    }
-
-    detailCard._propEdges = matches;
-
-    function render(statFilter) {
-      let rows = detailCard._propEdges || [];
-      if (statFilter && statFilter !== "all") {
-        rows = rows.filter((r) => r.stat === statFilter);
-      }
-      rows = rows.slice().sort((a, b) => (b.delta || 0) - (a.delta || 0));
-      if (!rows.length) {
-        listEl.innerHTML =
-          '<div class="muted">No props currently match these filters.</div>';
-        return;
-      }
-      const html = rows
-        .slice(0, 12)
-        .map((p) => {
-          const statLabel = (p.stat || "").toUpperCase();
-          const recent =
-            p.recent != null ? Number(p.recent).toFixed(1) : "–";
-          const season =
-            p.seasonAvg != null ? Number(p.seasonAvg).toFixed(1) : "–";
-          const delta =
-            p.delta != null ? Number(p.delta).toFixed(1) : "–";
-          let line = p.line != null ? p.line : p.market_line;
-          if (typeof line === "string") {
-            const num = parseFloat(line);
-            if (!Number.isNaN(num)) line = num;
-          }
-          const lineText =
-            line != null && line !== ""
-              ? Number(line).toFixed(1)
-              : "–";
-          return `
-            <div class="prop-row">
-              <div class="prop-row-main">
-                <span class="prop-row-stat">${statLabel}</span>
-                <span class="prop-row-line">Line: ${lineText}</span>
-              </div>
-              <div class="prop-row-meta">
-                <span>Recent: ${recent}</span>
-                <span>Season: ${season}</span>
-                <span>Δ ${delta}</span>
-              </div>
-            </div>
-          `;
-        })
-        .join("");
-      listEl.innerHTML = html;
-    }
-
-    render("all");
-
-    chipEls.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        chipEls.forEach((b) => b.classList.toggle("active", b === btn));
-        const key = btn.dataset.propStat || "all";
-        render(key);
-      });
-    });
-  } catch (err) {
-    console.error(err);
-    listEl.innerHTML =
-      '<div class="muted">Error loading prop preview.</div>';
-  }
 }
 
 /* ---------------- GAME MODAL ---------------- */
@@ -1951,12 +1646,9 @@ function openGameModal(info) {
     metaEl.textContent = bits.join(" • ");
   }
 
-  if (statSelect) {
-    if (!statSelect.value) statSelect.value = "pts";
-    loadGameContext(info, statSelect.value || "pts");
-  } else {
-    loadGameContext(info, "pts");
-  }
+  const stat = statSelect?.value || "pts";
+  if (statSelect && !statSelect.value) statSelect.value = stat;
+  loadGameContext(info, stat);
 }
 
 function closeGameModal() {
@@ -2016,15 +1708,21 @@ async function loadGameContext(gameInfo, stat) {
             const name = escapeHtml(p.name);
             const team = escapeHtml(p.team || "");
             const pos = escapeHtml(p.pos || "");
-            const delta = p.delta != null ? p.delta.toFixed(1) : "–";
             const recent = p.recent != null ? p.recent.toFixed(1) : "–";
             const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
+            const deltaNum = p.delta != null ? Number(p.delta) : null;
+            const deltaText =
+              deltaNum != null && !Number.isNaN(deltaNum)
+                ? deltaNum.toFixed(1)
+                : "–";
             const id =
               p.player_id != null
                 ? String(p.player_id)
                 : p.id != null
                 ? String(p.id)
                 : "";
+
+            const deltaBadge = buildDeltaBadge(deltaNum, deltaText);
 
             return `
               <div class="overview-row"
@@ -2038,7 +1736,7 @@ async function loadGameContext(gameInfo, stat) {
                 </div>
                 <div class="overview-row-meta">
                   <div class="team-sub">Recent: ${recent} • Season: ${season}</div>
-                  <div class="badge-soft">Δ ${delta}</div>
+                  ${deltaBadge}
                 </div>
               </div>
             `;
@@ -2149,6 +1847,7 @@ function openEdgeBoardModal() {
 
   const stat = statSelect?.value || edgeBoardState.currentStat || "pts";
   edgeBoardState.currentStat = stat;
+  if (statSelect && !statSelect.value) statSelect.value = stat;
   ensureEdgeBoardData(stat).then(() => {
     renderEdgeBoardTable();
   });
@@ -2226,13 +1925,19 @@ function renderEdgeBoardTable() {
       const pos = escapeHtml(p.pos || "");
       const recent = p.recent != null ? p.recent.toFixed(1) : "–";
       const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
-      const delta = p.delta != null ? p.delta.toFixed(1) : "–";
+      const deltaNum = p.delta != null ? Number(p.delta) : null;
+      const deltaText =
+        deltaNum != null && !Number.isNaN(deltaNum)
+          ? deltaNum.toFixed(1)
+          : "–";
       const id =
         p.player_id != null
           ? String(p.player_id)
           : p.id != null
           ? String(p.id)
           : "";
+
+      const deltaBadge = buildDeltaBadge(deltaNum, deltaText);
 
       return `
         <tr data-player-id="${id}"
@@ -2245,7 +1950,7 @@ function renderEdgeBoardTable() {
           <td>${label}</td>
           <td>${recent}</td>
           <td>${season}</td>
-          <td>${delta}</td>
+          <td>${deltaBadge}</td>
         </tr>
       `;
     })
@@ -2316,10 +2021,28 @@ function getPropTierClass(deltaRaw) {
   const d = Number(deltaRaw);
   if (!Number.isFinite(d)) return "prop-pill-neutral";
 
-  // Adjust thresholds later if you want
-  if (d >= 4) return "prop-pill-green";   // strong edge
-  if (d >= 2) return "prop-pill-yellow";  // medium edge
-  return "prop-pill-red";                 // weak / fade
+  if (d >= 4) return "prop-pill-green";
+  if (d >= 2) return "prop-pill-yellow";
+  return "prop-pill-red";
+}
+
+function getDeltaBarWidth(deltaRaw) {
+  const d = Math.abs(Number(deltaRaw));
+  if (!Number.isFinite(d)) return 20;
+  const max = 6;
+  const pct = Math.max(10, Math.min(100, (d / max) * 100));
+  return Math.round(pct);
+}
+
+function buildDeltaBadge(deltaNum, deltaText) {
+  const tierClass = getPropTierClass(deltaNum);
+  const widthPct = getDeltaBarWidth(deltaNum);
+  return `
+    <div class="delta-badge-wrap">
+      <div class="delta-bar" style="width:${widthPct}%;"></div>
+      <span class="prop-pill ${tierClass} delta-pill-inner">Δ ${deltaText}</span>
+    </div>
+  `;
 }
 
 function buildDate(range) {
