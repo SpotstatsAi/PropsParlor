@@ -373,34 +373,73 @@ function sortPlayersLocal(players, sortKeyRaw) {
   return list;
 }
 
-function renderPlayerGrid() {
-  const grid = document.getElementById("player-grid");
-  const empty = document.getElementById("player-empty");
-  const countEl = document.getElementById("player-count");
+function renderPlayerCard(p) {
+  const name = escapeHtml(p.name || "");
+  const pos = escapeHtml(p.pos || "");
+  const idStr = p.id != null ? `ID ${p.id}` : "";
+  const teamAbbr = p.team || "";
+  const team = escapeHtml(teamAbbr || "");
+  const height = escapeHtml(p.height || "–");
+  const weight = p.weight ? `${p.weight} lb` : "–";
+  const jersey = p.jersey ? `#${p.jersey}` : "—";
+  const id = p.id != null ? String(p.id) : "";
 
-  if (!grid || !empty) return;
+  const logoUrl = getTeamLogoUrl(teamAbbr);
 
-  const players = playersState.filteredPlayers || [];
-
-  if (countEl) {
-    countEl.textContent = String(players.length);
+  let badgeInner;
+  if (teamAbbr && logoUrl) {
+    badgeInner = `
+      <img
+        src="${logoUrl}"
+        alt="${team} logo"
+        class="player-badge-logo team-logo-img"
+        onerror="this.style.display='none';"
+      />
+      <span class="player-badge-text">${team}</span>
+    `;
+  } else if (teamAbbr) {
+    badgeInner = `<span class="player-badge-text">${team}</span>`;
+  } else {
+    badgeInner = `<span class="player-badge-text">FA</span>`;
   }
 
-  if (players.length === 0) {
-    grid.innerHTML = "";
-    empty.classList.remove("hidden");
-    setPlayerSubtitle("0 Players");
-    return;
-  }
-
-  empty.classList.add("hidden");
-  setPlayerSubtitle(
-    `${players.length} players • All teams • No game context required`
-  );
-
-  const cards = players.map((p) => renderPlayerCard(p)).join("");
-  grid.innerHTML = cards;
+  return `
+    <div class="player-card"
+         data-player-id="${id}"
+         data-player-name="${name}"
+         data-player-team="${team}"
+         data-player-pos="${pos}">
+      <div class="player-card-header">
+        <div>
+          <div class="player-name">${name}</div>
+          <div class="player-meta-line">
+            ${pos ? `${pos}` : ""}${idStr ? ` • ${idStr}` : ""}
+          </div>
+          <div class="player-tagline">
+            Always available • Player-only view
+          </div>
+        </div>
+        <div class="player-badge">
+          ${badgeInner}
+        </div>
+      </div>
+      <div class="player-body-row">
+        <span>Height</span>
+        <span>${height}</span>
+      </div>
+      <div class="player-body-row">
+        <span>Weight</span>
+        <span>${weight}</span>
+      </div>
+      <div class="player-body-row">
+        <span>Jersey</span>
+        <span>${jersey}</span>
+      </div>
+      <span class="jersey-pill">${jersey}</span>
+    </div>
+  `;
 }
+
 
 function renderPlayerCard(p) {
   const name = escapeHtml(p.name || "");
