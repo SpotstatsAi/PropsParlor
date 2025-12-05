@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTeamsView();
   setupTrendsView();
   setupOverviewView();
-  setupEdgesView();        // Edges tab (no-op if HTML not present)
+  setupEdgesView();
   setupPlayerModal();
   setupGameModal();
   setupEdgeBoardModal();
@@ -401,7 +401,7 @@ function renderPlayerGrid() {
   const cards = players.map((p) => renderPlayerCard(p)).join("");
   grid.innerHTML = cards;
 
-  // Clicking a card opens player modal
+  // clicking card opens modal
   const cardEls = grid.querySelectorAll(".player-card");
   cardEls.forEach((card) => {
     card.addEventListener("click", () => {
@@ -1258,7 +1258,7 @@ function renderEdgesTable() {
 
 /* ---------------- PLAYER MODAL ---------------- */
 
-let currentPlayerModal = null; // track player currently shown in modal
+let currentPlayerModal = null;
 
 function setupPlayerModal() {
   const modal = document.getElementById("player-modal");
@@ -1270,7 +1270,6 @@ function setupPlayerModal() {
   if (closeBtn) closeBtn.addEventListener("click", closePlayerModal);
   if (backdrop) backdrop.addEventListener("click", closePlayerModal);
 
-  // Ensure we have a container inside the modal for the detail card
   const modalBody = modal.querySelector(".modal-body");
   if (modalBody && !document.getElementById("player-detail-card")) {
     const detailDiv = document.createElement("div");
@@ -1279,7 +1278,6 @@ function setupPlayerModal() {
     modalBody.appendChild(detailDiv);
   }
 
-  // "View Detail Page" -> build detail card
   const detailBtn = document.getElementById("player-detail-btn");
   if (detailBtn) {
     detailBtn.addEventListener("click", () => {
@@ -1288,9 +1286,7 @@ function setupPlayerModal() {
     });
   }
 
-  // Global handler for non-card elements with data-player-id
   document.addEventListener("click", (evt) => {
-    // Player cards already wired; avoid double-fire
     if (evt.target.closest(".player-card")) return;
 
     const target = evt.target.closest("[data-player-id]");
@@ -1311,7 +1307,7 @@ function openPlayerModal(player) {
   const modal = document.getElementById("player-modal");
   if (!modal) return;
 
-  currentPlayerModal = player; // store for detail view
+  currentPlayerModal = player;
 
   modal.classList.remove("hidden");
 
@@ -1322,7 +1318,6 @@ function openPlayerModal(player) {
   const detailBtn = document.getElementById("player-detail-btn");
   const detailCard = document.getElementById("player-detail-card");
 
-  // reset detail card each open
   if (detailCard) {
     detailCard.classList.add("hidden");
     detailCard.innerHTML = "";
@@ -1377,7 +1372,6 @@ function openPlayerModal(player) {
     return;
   }
 
-  // initial = last 10
   loadPlayerStats(player.id, summaryEl, tbody, 10);
 }
 
@@ -1447,7 +1441,6 @@ async function loadPlayerStats(playerId, summaryEl, tbody, lastN = 10) {
   }
 }
 
-// builds indepth card + prop preview inside modal when "View Detail Page" is clicked
 async function openPlayerDetailCard(player) {
   const detailCard = document.getElementById("player-detail-card");
   const summaryEl = document.getElementById("modal-summary");
@@ -1516,7 +1509,6 @@ async function openPlayerDetailCard(player) {
       };
     });
 
-    // rebuild main table to use the full 50 for the right side
     const trHtml = rows
       .map((r) => {
         const date = r.game_date || r.date || "";
@@ -1636,6 +1628,24 @@ async function openPlayerDetailCard(player) {
             </div>
           </section>
 
+          <section class="player-detail-section">
+            <div class="player-detail-section-title">Recent Trends</div>
+            <div class="trend-charts">
+              <div class="trend-chart-row">
+                <span class="trend-chart-label">PTS</span>
+                <canvas class="trend-chart" data-chart-stat="pts"></canvas>
+              </div>
+              <div class="trend-chart-row">
+                <span class="trend-chart-label">REB</span>
+                <canvas class="trend-chart" data-chart-stat="reb"></canvas>
+              </div>
+              <div class="trend-chart-row">
+                <span class="trend-chart-label">AST</span>
+                <canvas class="trend-chart" data-chart-stat="ast"></canvas>
+              </div>
+            </div>
+          </section>
+
           <section class="player-detail-section prop-preview-section">
             <div class="player-detail-section-title">Prop Preview</div>
             <div class="prop-preview-controls">
@@ -1657,12 +1667,13 @@ async function openPlayerDetailCard(player) {
               Full sample from BallDontLie
             </div>
           </header>
-          <!-- main table on right already shows full game log -->
         </section>
       </div>
     `;
 
     detailCard.classList.remove("hidden");
+
+    buildPlayerTrendCharts(rows, detailCard);
     loadPlayerPropPreview(player, detailCard);
 
     if (detailBtn) {
@@ -1682,7 +1693,87 @@ async function openPlayerDetailCard(player) {
   }
 }
 
-// fetch /api/edges and build per-player prop preview (PTS/REB/AST)
+// mini sparkline charts using last ~15 games
+function buildPlayerTrendCharts(rows, detailCard) {
+  const canvases = detailCard.querySelectorAll(".trend-chart");
+  if (!canvases.length) return;
+
+  const sample = rows.slice(0, 15).reverse(); // oldest left
+  const valuesByStat = { pts: [], reb: [], ast: [] };
+
+  sample.forEach((r) => {
+    const pts = r.pts != null ? Number(r.pts) : null;
+    const rebRaw = r.reb != null ? r.reb : r.reb_tot;
+    const reb = rebRaw != null ? Number(rebRaw) : null;
+    const ast = r.ast != null ? Number(r.ast) : null;
+
+    if (pts != null && !Number.isNaN(pts)) valuesByStat.pts.push(pts);
+    if (reb != null && !Number.isNaN(reb)) valuesByStat.reb.push(reb);
+    if (ast != null && !Number.isNaN(ast)) valuesByStat.ast.push(ast);
+  });
+
+  canvases.forEach((canvas) => {
+    const key = canvas.dataset.chartStat;
+    const values = valuesByStat[key] || [];
+    drawSparkline(canvas, values);
+  });
+}
+
+function drawSparkline(canvas, values) {
+  const ctx = canvas.getContext("2d");
+  const logicalWidth = canvas.clientWidth || 160;
+  const logicalHeight = canvas.clientHeight || 60;
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = logicalWidth * dpr;
+  canvas.height = logicalHeight * dpr;
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+
+  if (!values.length) return;
+
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const span = max - min || 1;
+  const paddingX = 6;
+  const paddingY = 6;
+
+  const w = logicalWidth - paddingX * 2;
+  const h = logicalHeight - paddingY * 2;
+
+  const stepX =
+    values.length > 1 ? w / (values.length - 1) : 0;
+
+  ctx.beginPath();
+  values.forEach((v, i) => {
+    const norm = (v - min) / span;
+    const x = paddingX + i * stepX;
+    const y = paddingY + (1 - norm) * h;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = "#ffb74d";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.beginPath();
+  values.forEach((v, i) => {
+    const norm = (v - min) / span;
+    const x = paddingX + i * stepX;
+    const y = paddingY + (1 - norm) * h;
+    ctx.lineTo(x, y);
+  });
+  ctx.lineTo(paddingX + (values.length - 1) * stepX, paddingY + h);
+  ctx.lineTo(paddingX, paddingY + h);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, paddingY, 0, paddingY + h);
+  grad.addColorStop(0, "rgba(255,183,77,0.35)");
+  grad.addColorStop(1, "rgba(255,183,77,0)");
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
 async function loadPlayerPropPreview(player, detailCard) {
   const listEl = detailCard.querySelector("#prop-preview-list");
   const chipEls = detailCard.querySelectorAll("[data-prop-stat]");
@@ -1787,7 +1878,6 @@ async function loadPlayerPropPreview(player, detailCard) {
       listEl.innerHTML = html;
     }
 
-    // initial render: All
     render("all");
 
     chipEls.forEach((btn) => {
@@ -2007,7 +2097,7 @@ async function loadGameContext(gameInfo, stat) {
 /* ---------------- EDGE BOARD MODAL ---------------- */
 
 const edgeBoardState = {
-  byStat: {}, // stat -> raw rows
+  byStat: {},
   currentStat: "pts",
   position: "",
   team: "",
@@ -2181,7 +2271,6 @@ function populateEdgeBoardTeamsFilter() {
 
 /* ---------------- UTIL ---------------- */
 
-// Map roster team codes -> logo filename slug in /logos/
 const TEAM_LOGO_SLUGS = {
   ATL: "atl",
   BKN: "bkn",
