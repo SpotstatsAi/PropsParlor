@@ -1,1323 +1,1595 @@
-// PropsParlor Frontend – Player Detail Page + Core Views
-// Assumes Cloudflare Pages Functions/Workers backend with the described API.
+// app.js
+// Frontend wiring for PropsParlor dashboard.
 
-const API_BASE = '';
+document.addEventListener("DOMContentLoaded", () => {
+  setupNav();
+  setupGlobalSearch();
+  setupPlayersView();
+  setupGamesView();
+  setupTeamsView();
+  setupTrendsView();
+  setupOverviewView();
+  setupPlayerModal();
+  setupGameModal();
+  setupEdgeBoardModal();
+  ensureOverviewLoaded();
+});
 
-const AppState = {
-  today: null,
-  players: [],
-  playersById: new Map(),
-  teams: [],
-  edgesCache: {
-    pts: null,
-    reb: null,
-    ast: null,
-  },
-  currentGamesDate: 'today',
-  currentView: 'overview',
-  currentPlayerId: null,
-};
-
-/**
- * HTTP helpers
- */
-async function fetchJSON(path) {
-  const url = `${API_BASE}${path}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} for ${url}`);
-  }
-  return res.json();
-}
-
-/**
- * Date helpers
- */
-function getTodayISO() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function addDaysToISO(iso, deltaDays) {
-  const [y, m, d] = iso.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + deltaDays);
-  const yy = dt.getFullYear();
-  const mm = String(dt.getMonth() + 1).padStart(2, '0');
-  const dd = String(dt.getDate()).padStart(2, '0');
-  return `${yy}-${mm}-${dd}`;
-}
-
-function formatISOForLabel(iso) {
-  const [y, m, d] = iso.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-/**
- * View switching
- */
-function setActiveView(viewName) {
-  AppState.currentView = viewName;
-  document
-    .querySelectorAll('.view')
-    .forEach((v) => v.classList.remove('active'));
-  const viewEl = document.getElementById(`view-${viewName}`);
-  if (viewEl) viewEl.classList.add('active');
-
-  document
-    .querySelectorAll('.nav-tab')
-    .forEach((btn) => btn.classList.remove('active'));
-
-  const tab = document.querySelector(`.nav-tab[data-view="${viewName}"]`);
-  if (tab) tab.classList.add('active');
-}
+/* ---------------- NAV ---------------- */
 
 function setupNav() {
-  document.querySelectorAll('.nav-tab').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const view = btn.dataset.view;
-      if (!view) return;
-      window.location.hash = `#${view}`;
+  const tabs = document.querySelectorAll(".nav-tab");
+  const views = document.querySelectorAll(".view");
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.view;
+
+      tabs.forEach((t) => t.classList.toggle("active", t === tab));
+      views.forEach((v) =>
+        v.classList.toggle("active", v.id === target)
+      );
+
+      if (target === "players-view") {
+        ensurePlayersLoaded();
+      } else if (target === "games-view") {
+        ensureGamesLoaded();
+      } else if (target === "teams-view") {
+        ensureTeamsLoaded();
+      } else if (target === "trends-view") {
+        ensureTrendsLoaded();
+      } else if (target === "overview-view") {
+        ensureOverviewLoaded();
+      }
     });
   });
 
-  const backBtn = document.getElementById('player-detail-back');
-  backBtn.addEventListener('click', () => {
-    window.location.hash = '#players';
-  });
-}
-
-/**
- * Router
- * Hash patterns:
- *   #overview | #games | #players | #teams | #trends
- *   #player-<playerId>
- */
-function routeFromHash() {
-  const hash = window.location.hash || '#overview';
-
-  if (hash.startsWith('#player-')) {
-    const idStr = hash.replace('#player-', '');
-    if (idStr) {
-      const playerId = idStr;
-      setActiveView('player-detail');
-      loadPlayerDetail(playerId).catch((err) => {
-        console.error(err);
-        showPlayerDetailError('Failed to load player.');
-      });
-      return;
-    }
-  }
-
-  const view = hash.replace('#', '') || 'overview';
-  if (
-    ['overview', 'games', 'players', 'teams', 'trends'].includes(view)
-  ) {
-    setActiveView(view);
-  } else {
-    setActiveView('overview');
+  const edgeBtn = document.getElementById("edge-board-btn");
+  if (edgeBtn) {
+    edgeBtn.addEventListener("click", () => {
+      openEdgeBoardModal();
+    });
   }
 }
 
-function initRouter() {
-  window.addEventListener('hashchange', routeFromHash);
-  routeFromHash();
-}
+/* ---------------- GLOBAL SEARCH ---------------- */
 
-/**
- * Global search (BDL)
- */
 function setupGlobalSearch() {
-  const input = document.getElementById('global-search-input');
-  const resultsEl = document.getElementById('global-search-results');
+  const input = document.getElementById("global-search");
+  const resultsEl = document.getElementById("global-search-results");
+  if (!input || !resultsEl) return;
 
-  let searchTimeout = null;
+  input.addEventListener(
+    "input",
+    debounce(() => handleGlobalSearchInput(input, resultsEl), 200)
+  );
 
-  input.addEventListener('input', () => {
-    const q = input.value.trim();
-    clearTimeout(searchTimeout);
-
-    if (!q) {
-      resultsEl.innerHTML = '';
-      resultsEl.classList.remove('visible');
-      return;
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const first = resultsEl.querySelector(".search-result-item");
+      if (first) {
+        e.preventDefault();
+        first.click();
+        return;
+      }
+      const q = input.value.trim();
+      if (!q) return;
+      document
+        .querySelector('.nav-tab[data-view="players-view"]')
+        .click();
+      const playerSearch = document.getElementById("player-search");
+      if (playerSearch) {
+        playerSearch.value = q;
+        applyPlayerFilters();
+      }
+    } else if (e.key === "Escape") {
+      hideGlobalSearchResults(resultsEl);
+      input.blur();
     }
+  });
 
-    searchTimeout = setTimeout(async () => {
-      try {
-        const data = await fetchJSON(`/api/bdl/players?search=${encodeURIComponent(q)}`);
-        const list = Array.isArray(data) ? data : data.data || [];
-        renderGlobalSearchResults(list);
-      } catch (err) {
-        console.error(err);
+  input.addEventListener("blur", () => {
+    setTimeout(() => hideGlobalSearchResults(resultsEl), 150);
+  });
+
+  resultsEl.addEventListener("click", () => {
+    hideGlobalSearchResults(resultsEl);
+  });
+}
+
+function handleGlobalSearchInput(input, resultsEl) {
+  const q = input.value.trim();
+  if (q.length < 3) {
+    hideGlobalSearchResults(resultsEl);
+    return;
+  }
+
+  resultsEl.classList.remove("hidden");
+  resultsEl.innerHTML = `<div class="search-result-empty">Searching "${escapeHtml(
+    q
+  )}"…</div>`;
+
+  const params = new URLSearchParams();
+  params.set("search", q);
+  params.set("per_page", "10");
+
+  fetch(`/api/bdl/players?${params.toString()}`)
+    .then((res) => {
+      if (!res.ok) throw new Error("Search failed");
+      return res.json();
+    })
+    .then((json) => {
+      const data = json.data || [];
+      if (!data.length) {
         resultsEl.innerHTML =
-          '<div class="global-search-result-item">Search failed.</div>';
-        resultsEl.classList.add('visible');
+          '<div class="search-result-empty">No players found.</div>';
+        return;
       }
-    }, 220);
-  });
+      const html = data
+        .map((p) => {
+          const id = p.id != null ? String(p.id) : "";
+          const name = escapeHtml(p.name || "");
+          const team = escapeHtml(p.team || "");
+          const pos = escapeHtml(p.pos || "");
+          const fullTeam = escapeHtml(p.full_team || "");
 
-  document.addEventListener('click', (evt) => {
-    if (!resultsEl.contains(evt.target) && evt.target !== input) {
-      resultsEl.classList.remove('visible');
-    }
-  });
-
-  function renderGlobalSearchResults(players) {
-    const resultsEl = document.getElementById('global-search-results');
-    if (!players || players.length === 0) {
+          return `
+            <div class="search-result-item"
+                 data-player-id="${id}"
+                 data-player-name="${name}"
+                 data-player-team="${team}"
+                 data-player-pos="${pos}">
+              <div class="search-result-name">${name}</div>
+              <div class="search-result-meta">
+                ${team ? team : ""}${pos ? " • " + pos : ""}${
+            fullTeam ? " • " + fullTeam : ""
+          }
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+      resultsEl.innerHTML = html;
+    })
+    .catch((err) => {
+      console.error(err);
       resultsEl.innerHTML =
-        '<div class="global-search-result-item">No matches.</div>';
-      resultsEl.classList.add('visible');
-      return;
-    }
-
-    resultsEl.innerHTML = '';
-    players.slice(0, 20).forEach((p) => {
-      const item = document.createElement('div');
-      item.className = 'global-search-result-item';
-      const team = p.team || p.team_abbreviation || '';
-      const pos = p.position || p.pos || '';
-      item.innerHTML = `
-        <div>
-          <div>${p.first_name || ''} ${p.last_name || ''}</div>
-          <div class="global-search-result-meta">${team} · ${pos}</div>
-        </div>
-        <div class="global-search-result-meta">ID: ${p.id}</div>
-      `;
-      item.addEventListener('click', () => {
-        resultsEl.classList.remove('visible');
-        input.value = '';
-        if (p.id != null) {
-          navigateToPlayerDetail(String(p.id));
-        }
-      });
-      resultsEl.appendChild(item);
+        '<div class="search-result-empty">Error searching players.</div>';
     });
-
-    resultsEl.classList.add('visible');
-  }
 }
 
-/**
- * Overview
- */
-async function loadOverview() {
-  const todayISO = AppState.today;
-  if (!todayISO) return;
-
-  const [games, edgesPts, trending, teams] = await Promise.allSettled([
-    fetchJSON(`/api/games?date=${todayISO}`),
-    fetchJSON(`/api/edges?stat=pts&limit=15`),
-    fetchJSON(`/api/trending?stat=pts&limit=15`),
-    fetchJSON(`/api/teams`),
-  ]);
-
-  if (games.status === 'fulfilled') {
-    renderOverviewGames(games.value || []);
-  }
-
-  if (edgesPts.status === 'fulfilled') {
-    renderOverviewTopProps(edgesPts.value || []);
-    AppState.edgesCache.pts = edgesPts.value || [];
-  }
-
-  if (trending.status === 'fulfilled') {
-    renderOverviewTrending(trending.value || []);
-  }
-
-  if (teams.status === 'fulfilled') {
-    renderOverviewTeamsSnapshot(teams.value || []);
-  }
-
-  // Simple Edge summary using points edges
-  if (edgesPts.status === 'fulfilled') {
-    renderOverviewEdgeSummary(edgesPts.value || []);
-  }
+function hideGlobalSearchResults(resultsEl) {
+  resultsEl.classList.add("hidden");
+  resultsEl.innerHTML = "";
 }
 
-function renderOverviewGames(games) {
-  const listEl = document.getElementById('overview-games-list');
-  const countEl = document.getElementById('overview-games-count');
-  listEl.innerHTML = '';
+/* ---------------- PLAYERS ---------------- */
 
-  if (!Array.isArray(games) || games.length === 0) {
-    listEl.textContent = 'No games scheduled.';
-    countEl.textContent = '0';
-    return;
+let playersState = {
+  loaded: false,
+  allPlayers: [],
+  filteredPlayers: [],
+  snapshot: {
+    uniqueTeams: 0,
+    guards: 0,
+    forwards: 0,
+    centers: 0,
+  },
+};
+
+function setupPlayersView() {
+  const searchInput = document.getElementById("player-search");
+  const teamSelect = document.getElementById("filter-team");
+  const posSelect = document.getElementById("filter-position");
+  const sortSelect = document.getElementById("sort-order");
+  const resetBtn = document.getElementById("filters-reset");
+  const clearBtn = document.getElementById("player-clear-filters");
+
+  if (searchInput) {
+    searchInput.addEventListener("input", debounce(applyPlayerFilters, 150));
   }
-
-  countEl.textContent = games.length;
-
-  games.forEach((g) => {
-    const row = document.createElement('div');
-    row.className = 'player-detail-gamelog-row';
-    const home = g.home_team || g.home || g.h || '';
-    const away = g.away_team || g.away || g.a || '';
-    const spread = g.spread || '';
-    const total = g.total || g.ou || '';
-
-    row.innerHTML = `
-      <div class="player-detail-gamelog-date">
-        ${g.time || g.tip || ''}
-      </div>
-      <div class="player-detail-gamelog-opp">
-        ${away} @ ${home}
-        <div class="player-detail-gamelog-line">
-          ${spread ? `Spread: ${spread}` : ''} ${
-      total ? `· Total: ${total}` : ''
-    }
-        </div>
-      </div>
-      <div class="player-detail-gamelog-statline">
-        ${g.book || ''} ${g.line || ''}
-      </div>
-    `;
-
-    row.addEventListener('click', () => {
-      openGameModal(g);
+  if (teamSelect) {
+    teamSelect.addEventListener("change", applyPlayerFilters);
+  }
+  if (posSelect) {
+    posSelect.addEventListener("change", applyPlayerFilters);
+  }
+  if (sortSelect) {
+    sortSelect.addEventListener("change", applyPlayerFilters);
+  }
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      if (teamSelect) teamSelect.value = "";
+      if (posSelect) posSelect.value = "";
+      if (sortSelect) sortSelect.value = "name-asc";
+      applyPlayerFilters();
     });
-
-    listEl.appendChild(row);
-  });
-}
-
-function renderOverviewTopProps(edges) {
-  const el = document.getElementById('overview-top-props-list');
-  el.innerHTML = '';
-
-  if (!Array.isArray(edges) || edges.length === 0) {
-    el.textContent = 'No edges available.';
-    return;
   }
-
-  edges.forEach((e) => {
-    const row = document.createElement('div');
-    row.className = 'player-detail-stat-row';
-    const playerName = e.player_name || e.player || '';
-    const team = e.team || '';
-    const stat = e.stat || e.market || 'PTS';
-    const book = e.book || '';
-    const line = e.line != null ? e.line : e.prop_line;
-    const edgeVal =
-      e.edge != null ? e.edge : e.ev_edge != null ? e.ev_edge : null;
-
-    const statLabel = `${stat} ${line != null ? `@ ${line}` : ''}`;
-    const edgeLabel =
-      edgeVal != null ? `${edgeVal.toFixed ? edgeVal.toFixed(1) : edgeVal}%` : '';
-
-    row.innerHTML = `
-      <div class="player-detail-stat-label">
-        <strong>${playerName}</strong> · ${team}
-        <div class="player-detail-gamelog-line">${book} · ${statLabel}</div>
-      </div>
-      <div class="player-detail-stat-values">
-        <span class="tag ${
-          edgeVal != null && edgeVal >= 5 ? 'tag-accent' : 'tag-secondary'
-        }">${edgeLabel}</span>
-      </div>
-    `;
-
-    row.addEventListener('click', () => {
-      if (e.player_id != null) {
-        navigateToPlayerDetail(String(e.player_id));
-      }
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      if (teamSelect) teamSelect.value = "";
+      if (posSelect) posSelect.value = "";
+      if (sortSelect) sortSelect.value = "name-asc";
+      applyPlayerFilters();
     });
-
-    el.appendChild(row);
-  });
-}
-
-function renderOverviewTrending(trending) {
-  const el = document.getElementById('overview-trending-list');
-  el.innerHTML = '';
-
-  if (!Array.isArray(trending) || trending.length === 0) {
-    el.textContent = 'No trending players.';
-    return;
-  }
-
-  trending.forEach((t) => {
-    const row = document.createElement('div');
-    row.className = 'player-detail-stat-row';
-    const player = t.player_name || t.player || '';
-    const stat = t.stat || t.market || 'PTS';
-    const trend = t.trend || t.streak || '';
-    const team = t.team || '';
-
-    row.innerHTML = `
-      <div class="player-detail-stat-label">
-        <strong>${player}</strong> · ${team}
-        <div class="player-detail-gamelog-line">${stat}</div>
-      </div>
-      <div class="player-detail-stat-values">
-        <span class="tag tag-secondary">${trend}</span>
-      </div>
-    `;
-
-    row.addEventListener('click', () => {
-      if (t.player_id != null) {
-        navigateToPlayerDetail(String(t.player_id));
-      }
-    });
-
-    el.appendChild(row);
-  });
-}
-
-function renderOverviewTeamsSnapshot(teamData) {
-  const el = document.getElementById('overview-rosters-list');
-  el.innerHTML = '';
-
-  if (!Array.isArray(teamData) || teamData.length === 0) {
-    el.textContent = 'No roster data.';
-    return;
-  }
-
-  teamData.forEach((t) => {
-    const team = t.team || t.abbr || t.code;
-    const count = t.count || t.roster_count || 0;
-    const div = document.createElement('div');
-    div.className = 'player-detail-stat-row';
-    div.innerHTML = `
-      <div class="player-detail-stat-label">${team}</div>
-      <div class="player-detail-stat-values">
-        <span class="tag tag-secondary">${count}</span>
-      </div>
-    `;
-    el.appendChild(div);
-  });
-
-  // This snapshot structure should align with the rosters.json the backend uses. :contentReference[oaicite:0]{index=0}
-}
-
-function renderOverviewEdgeSummary(edges) {
-  const el = document.getElementById('overview-edge-summary-body');
-  el.innerHTML = '';
-
-  if (!Array.isArray(edges) || edges.length === 0) {
-    el.textContent = 'No edge summary available.';
-    return;
-  }
-
-  const top = edges.slice(0, 5);
-  top.forEach((e) => {
-    const div = document.createElement('div');
-    div.className = 'player-detail-stat-row';
-    const player = e.player_name || e.player || '';
-    const stat = e.stat || 'PTS';
-    const edgeVal =
-      e.edge != null ? e.edge : e.ev_edge != null ? e.ev_edge : null;
-
-    div.innerHTML = `
-      <div class="player-detail-stat-label">
-        <strong>${player}</strong> · ${stat}
-      </div>
-      <div class="player-detail-stat-values">
-        <span class="tag ${
-          edgeVal != null && edgeVal >= 5 ? 'tag-accent' : 'tag-secondary'
-        }">
-          ${edgeVal != null ? (edgeVal.toFixed ? edgeVal.toFixed(1) : edgeVal) : ''}
-        </span>
-      </div>
-    `;
-
-    div.addEventListener('click', () => {
-      if (e.player_id != null) {
-        navigateToPlayerDetail(String(e.player_id));
-      }
-    });
-
-    el.appendChild(div);
-  });
-}
-
-/**
- * Games tab
- */
-function setupGamesToolbar() {
-  const btns = document.querySelectorAll('[data-games-date]');
-  btns.forEach((btn) => {
-    const dateKey = btn.dataset.gamesDate;
-    if (dateKey === AppState.currentGamesDate) btn.classList.add('active');
-
-    btn.addEventListener('click', () => {
-      btns.forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      AppState.currentGamesDate = dateKey;
-      loadGames();
-    });
-  });
-}
-
-async function loadGames() {
-  const todayISO = AppState.today;
-  if (!todayISO) return;
-
-  const targetISO =
-    AppState.currentGamesDate === 'tomorrow'
-      ? addDaysToISO(todayISO, 1)
-      : todayISO;
-
-  const labelEl = document.getElementById('games-date-label');
-  if (labelEl) labelEl.textContent = formatISOForLabel(targetISO);
-
-  try {
-    const games = await fetchJSON(`/api/games?date=${targetISO}`);
-    renderGamesList(games || []);
-  } catch (err) {
-    console.error(err);
-    const listEl = document.getElementById('games-list');
-    listEl.textContent = 'Failed to load games.';
   }
 }
 
-function renderGamesList(games) {
-  const listEl = document.getElementById('games-list');
-  listEl.innerHTML = '';
-
-  if (!Array.isArray(games) || games.length === 0) {
-    listEl.textContent = 'No games.';
-    return;
-  }
-
-  games.forEach((g) => {
-    const row = document.createElement('div');
-    row.className = 'player-detail-gamelog-row';
-    const home = g.home_team || g.home || '';
-    const away = g.away_team || g.away || '';
-    const time = g.time || '';
-    const spread = g.spread || '';
-    const total = g.total || '';
-
-    row.innerHTML = `
-      <div class="player-detail-gamelog-date">${time}</div>
-      <div class="player-detail-gamelog-opp">
-        <strong>${away}</strong> @ <strong>${home}</strong>
-        <div class="player-detail-gamelog-line">
-          ${spread ? `Spread: ${spread}` : ''} ${
-      total ? `· Total: ${total}` : ''
-    }
-        </div>
-      </div>
-      <div class="player-detail-gamelog-statline">${g.book || ''}</div>
-    `;
-
-    row.addEventListener('click', () => openGameModal(g));
-    listEl.appendChild(row);
-  });
+function ensurePlayersLoaded() {
+  if (playersState.loaded) return;
+  loadPlayers();
 }
 
-/**
- * Players tab
- */
 async function loadPlayers() {
+  setPlayerSubtitle("Loading players...");
   try {
-    const players = await fetchJSON('/api/players');
-    AppState.players = Array.isArray(players) ? players : players.data || [];
-    AppState.playersById.clear();
-    AppState.players.forEach((p) => {
-      if (p.id != null) {
-        AppState.playersById.set(String(p.id), p);
-      }
-    });
-    renderPlayersFilters(AppState.players);
-    renderPlayersTable(AppState.players);
+    const res = await fetch("/api/players");
+    if (!res.ok) throw new Error("Failed to load players");
+    const json = await res.json();
+
+    playersState.allPlayers = json.data || [];
+    playersState.snapshot = {
+      uniqueTeams: json.meta?.uniqueTeams || 0,
+      guards: json.meta?.guards || 0,
+      forwards: json.meta?.forwards || 0,
+      centers: json.meta?.centers || 0,
+    };
+    playersState.loaded = true;
+
+    populatePlayerFilters(playersState.allPlayers);
+    updateSnapshot();
+    applyPlayerFilters();
   } catch (err) {
     console.error(err);
-    const tbody = document.getElementById('players-table-body');
-    tbody.innerHTML = '<tr><td colspan="6">Failed to load players.</td></tr>';
+    setPlayerSubtitle("Error loading players.");
   }
 }
 
-function renderPlayersFilters(players) {
-  const teamSelect = document.getElementById('players-filter-team');
+function populatePlayerFilters(players) {
+  const teamSelect = document.getElementById("filter-team");
+  if (!teamSelect) return;
+
   const teams = new Set();
   players.forEach((p) => {
     if (p.team) teams.add(p.team);
   });
 
-  const sorted = Array.from(teams).sort();
-  teamSelect.innerHTML = '<option value="">All</option>';
-  sorted.forEach((t) => {
-    const opt = document.createElement('option');
-    opt.value = t;
-    opt.textContent = t;
-    teamSelect.appendChild(opt);
-  });
-}
-
-function setupPlayersFilters() {
-  const teamSelect = document.getElementById('players-filter-team');
-  const posSelect = document.getElementById('players-filter-pos');
-  const textInput = document.getElementById('players-filter-text');
-
-  const recompute = () => {
-    const team = teamSelect.value;
-    const pos = posSelect.value;
-    const text = textInput.value.trim().toLowerCase();
-
-    const filtered = AppState.players.filter((p) => {
-      if (team && p.team !== team) return false;
-      if (pos && !(p.pos || '').includes(pos)) return false;
-      if (text) {
-        const full = `${p.name || ''} ${p.first_name || ''} ${
-          p.last_name || ''
-        }`.toLowerCase();
-        if (!full.includes(text)) return false;
-      }
-      return true;
+  const options = ['<option value="">All teams</option>'];
+  Array.from(teams)
+    .sort()
+    .forEach((abbr) => {
+      options.push(`<option value="${escapeHtml(abbr)}">${escapeHtml(
+        abbr
+      )}</option>`);
     });
 
-    renderPlayersTable(filtered);
-  };
-
-  teamSelect.addEventListener('change', recompute);
-  posSelect.addEventListener('change', recompute);
-  textInput.addEventListener('input', recompute);
+  teamSelect.innerHTML = options.join("");
 }
 
-function renderPlayersTable(players) {
-  const tbody = document.getElementById('players-table-body');
-  tbody.innerHTML = '';
+function applyPlayerFilters() {
+  if (!playersState.loaded) return;
+  const searchInput = document.getElementById("player-search");
+  const teamSelect = document.getElementById("filter-team");
+  const posSelect = document.getElementById("filter-position");
+  const sortSelect = document.getElementById("sort-order");
 
-  if (!Array.isArray(players) || players.length === 0) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="6">No players.</td>';
-    tbody.appendChild(tr);
-    return;
-  }
+  const search = (searchInput?.value || "").trim().toLowerCase();
+  const team = (teamSelect?.value || "").trim();
+  const pos = (posSelect?.value || "").trim().toUpperCase();
+  const sortKey = sortSelect?.value || "name-asc";
 
-  players.forEach((p) => {
-    const tr = document.createElement('tr');
-    const name = p.name || `${p.first_name || ''} ${p.last_name || ''}`.trim();
-    tr.innerHTML = `
-      <td>${name}</td>
-      <td>${p.team || ''}</td>
-      <td>${p.pos || ''}</td>
-      <td>${p.height || ''}</td>
-      <td>${p.weight || ''}</td>
-      <td>${p.jersey || ''}</td>
-    `;
+  let filtered = playersState.allPlayers.slice();
 
-    tr.style.cursor = 'pointer';
-    tr.addEventListener('click', () => {
-      if (p.id != null) {
-        navigateToPlayerDetail(String(p.id));
-      } else if (p.name) {
-        openPlayerModal(p);
-      }
+  if (search) {
+    filtered = filtered.filter((p) => {
+      const name = (p.name || "").toLowerCase();
+      const teamStr = (p.team || "").toLowerCase();
+      const jersey = p.jersey ? String(p.jersey).toLowerCase() : "";
+      return (
+        name.includes(search) ||
+        teamStr.includes(search) ||
+        jersey.includes(search)
+      );
     });
-
-    tbody.appendChild(tr);
-  });
-}
-
-/**
- * Teams tab
- */
-async function loadTeams() {
-  try {
-    const teams = await fetchJSON('/api/teams');
-    const list = Array.isArray(teams) ? teams : teams.data || [];
-    AppState.teams = list;
-    renderTeamsTable(list);
-  } catch (err) {
-    console.error(err);
-    const tbody = document.getElementById('teams-table-body');
-    tbody.innerHTML = '<tr><td colspan="2">Failed to load teams.</td></tr>';
-  }
-}
-
-function renderTeamsTable(teams) {
-  const tbody = document.getElementById('teams-table-body');
-  tbody.innerHTML = '';
-
-  if (!Array.isArray(teams) || teams.length === 0) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="2">No teams.</td>';
-    tbody.appendChild(tr);
-    return;
   }
 
-  teams.forEach((t) => {
-    const team = t.team || t.abbr || t.code;
-    const count = t.count || t.roster_count || 0;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${team}</td><td>${count}</td>`;
-    tbody.appendChild(tr);
-  });
-}
+  if (team) {
+    filtered = filtered.filter((p) => p.team === team);
+  }
 
-/**
- * Trends tab
- */
-function setupTrendsFilters() {
-  const statSelect = document.getElementById('trends-filter-stat');
-  const limitSelect = document.getElementById('trends-filter-limit');
-
-  const load = () => {
-    const stat = statSelect.value || 'pts';
-    const limit = Number(limitSelect.value) || 25;
-    loadTrends(stat, limit);
-  };
-
-  statSelect.addEventListener('change', load);
-  limitSelect.addEventListener('change', load);
-}
-
-async function loadTrends(stat = 'pts', limit = 25) {
-  try {
-    const data = await fetchJSON(
-      `/api/trending?stat=${encodeURIComponent(stat)}&limit=${limit}`,
+  if (pos) {
+    filtered = filtered.filter((p) =>
+      (p.pos || "").toUpperCase().includes(pos)
     );
-    const list = Array.isArray(data) ? data : data.data || [];
-    renderTrendsTable(list);
-  } catch (err) {
-    console.error(err);
-    const tbody = document.getElementById('trends-table-body');
-    tbody.innerHTML = '<tr><td colspan="4">Failed to load trends.</td></tr>';
-  }
-}
-
-function renderTrendsTable(list) {
-  const tbody = document.getElementById('trends-table-body');
-  tbody.innerHTML = '';
-
-  if (!Array.isArray(list) || list.length === 0) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="4">No trends.</td>';
-    tbody.appendChild(tr);
-    return;
   }
 
-  list.forEach((t) => {
-    const player = t.player_name || t.player || '';
-    const team = t.team || '';
-    const stat = t.stat || t.market || 'PTS';
-    const trend = t.trend || t.streak || '';
+  filtered = sortPlayersLocal(filtered, sortKey);
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${player}</td>
-      <td>${team}</td>
-      <td>${stat}</td>
-      <td>${trend}</td>
-    `;
-
-    tr.style.cursor = t.player_id != null ? 'pointer' : 'default';
-    tr.addEventListener('click', () => {
-      if (t.player_id != null) {
-        navigateToPlayerDetail(String(t.player_id));
-      }
-    });
-
-    tbody.appendChild(tr);
-  });
+  playersState.filteredPlayers = filtered;
+  renderPlayerGrid();
 }
 
-/**
- * Player Detail page
- */
+function sortPlayersLocal(players, sortKeyRaw) {
+  const sortKey = sortKeyRaw || "name-asc";
+  const list = players.slice();
 
-function navigateToPlayerDetail(playerId) {
-  window.location.hash = `#player-${playerId}`;
-}
-
-function showPlayerDetailLoading() {
-  document.getElementById('player-detail-loading').classList.remove('hidden');
-  document.getElementById('player-detail-error').classList.add('hidden');
-}
-
-function hidePlayerDetailLoading() {
-  document.getElementById('player-detail-loading').classList.add('hidden');
-}
-
-function showPlayerDetailError(msg) {
-  const el = document.getElementById('player-detail-error');
-  el.textContent = msg;
-  el.classList.remove('hidden');
-}
-
-/**
- * Compute averages for fields from game logs.
- * Expects numeric fields (pts, reb, ast, etc).
- */
-function computeAverages(gameLogs, fields, sliceCount) {
-  const subset =
-    sliceCount && sliceCount > 0 ? gameLogs.slice(0, sliceCount) : gameLogs;
-  const result = {};
-  fields.forEach((f) => {
-    let total = 0;
-    let n = 0;
-    subset.forEach((g) => {
-      const val = Number(g[f]);
-      if (!Number.isNaN(val)) {
-        total += val;
-        n += 1;
-      }
-    });
-    if (n > 0) {
-      result[f] = total / n;
-    } else {
-      result[f] = null;
-    }
-  });
-  return result;
-}
-
-/**
- * Load and render Player Detail
- */
-async function loadPlayerDetail(playerId) {
-  if (!playerId) return;
-  AppState.currentPlayerId = playerId;
-  showPlayerDetailLoading();
-
-  // Ensure players roster is loaded, to get meta.
-  if (!AppState.players || AppState.players.length === 0) {
-    try {
-      const players = await fetchJSON('/api/players');
-      AppState.players = Array.isArray(players) ? players : players.data || [];
-      AppState.playersById.clear();
-      AppState.players.forEach((p) => {
-        if (p.id != null) {
-          AppState.playersById.set(String(p.id), p);
+  switch (sortKey) {
+    case "team":
+      list.sort((a, b) => {
+        if (a.team === b.team) {
+          return (a.last_name || a.name || "").localeCompare(
+            b.last_name || b.name || ""
+          );
         }
+        return (a.team || "").localeCompare(b.team || "");
       });
-    } catch (err) {
-      console.error(err);
-    }
+      break;
+
+    case "height-desc":
+      list.sort((a, b) => {
+        const ha = a.heightInches ?? -1;
+        const hb = b.heightInches ?? -1;
+        if (hb !== ha) return hb - ha;
+        return (a.last_name || a.name || "").localeCompare(
+          b.last_name || b.name || ""
+        );
+      });
+      break;
+
+    case "weight-desc":
+      list.sort((a, b) => {
+        const wa = a.weightNum ?? -1;
+        const wb = b.weightNum ?? -1;
+        if (wb !== wa) return wb - wa;
+        return (a.last_name || a.name || "").localeCompare(
+          b.last_name || b.name || ""
+        );
+      });
+      break;
+
+    case "jersey-asc":
+      list.sort((a, b) => {
+        const ja = parseInt(a.jersey, 10) || 0;
+        const jb = parseInt(b.jersey, 10) || 0;
+        if (ja !== jb) return ja - jb;
+        return (a.last_name || a.name || "").localeCompare(
+          b.last_name || b.name || ""
+        );
+      });
+      break;
+
+    case "name-asc":
+    default:
+      list.sort((a, b) =>
+        (a.last_name || a.name || "").localeCompare(
+          b.last_name || b.name || ""
+        )
+      );
+      break;
   }
 
-  const rosterPlayer = AppState.playersById.get(String(playerId)) || null;
-
-  const statsPromise = fetchJSON(`/api/stats?player_id=${playerId}&last_n=82`);
-  const edgesPtsPromise = fetchJSON(`/api/edges?stat=pts&limit=200`);
-  const edgesRebPromise = fetchJSON(`/api/edges?stat=reb&limit=200`);
-  const edgesAstPromise = fetchJSON(`/api/edges?stat=ast&limit=200`);
-
-  const [statsRes, ptsRes, rebRes, astRes] = await Promise.allSettled([
-    statsPromise,
-    edgesPtsPromise,
-    edgesRebPromise,
-    edgesAstPromise,
-  ]);
-
-  hidePlayerDetailLoading();
-
-  let gameLogs = [];
-  if (statsRes.status === 'fulfilled') {
-    gameLogs = Array.isArray(statsRes.value)
-      ? statsRes.value
-      : statsRes.value.data || [];
-  } else {
-    console.error(statsRes.reason);
-    showPlayerDetailError('Failed to load game logs.');
-  }
-
-  const edgesByStat = {
-    pts:
-      ptsRes.status === 'fulfilled'
-        ? Array.isArray(ptsRes.value)
-          ? ptsRes.value
-          : ptsRes.value.data || []
-        : [],
-    reb:
-      rebRes.status === 'fulfilled'
-        ? Array.isArray(rebRes.value)
-          ? rebRes.value
-          : rebRes.value.data || []
-        : [],
-    ast:
-      astRes.status === 'fulfilled'
-        ? Array.isArray(astRes.value)
-          ? astRes.value
-          : astRes.value.data || []
-        : [],
-  };
-
-  renderPlayerDetailHeader(rosterPlayer, playerId);
-  renderPlayerDetailSeasonSnapshot(rosterPlayer, gameLogs);
-  renderPlayerDetailGameLog(gameLogs);
-  renderPlayerDetailSeasonAverages(gameLogs);
-  renderPlayerDetailPropPreview(rosterPlayer, playerId, edgesByStat);
-
-  const edgeBtn = document.getElementById('player-detail-edgeboard-btn');
-  edgeBtn.onclick = () => openEdgeBoardForPlayer(playerId, rosterPlayer);
+  return list;
 }
 
-function renderPlayerDetailHeader(player, playerId) {
-  const nameEl = document.getElementById('player-detail-name');
-  const metaEl = document.getElementById('player-detail-meta');
-  const tagsEl = document.getElementById('player-detail-tags');
+function renderPlayerGrid() {
+  const grid = document.getElementById("player-grid");
+  const empty = document.getElementById("player-empty");
+  const countEl = document.getElementById("player-count");
 
-  const name =
-    player?.name ||
-    `${player?.first_name || ''} ${player?.last_name || ''}`.trim() ||
-    `Player ${playerId}`;
-  nameEl.textContent = name;
+  if (!grid || !empty) return;
 
-  const pieces = [];
-  if (player?.team) pieces.push(player.team);
-  if (player?.pos) pieces.push(player.pos);
-  if (player?.height) pieces.push(player.height);
-  if (player?.weight) pieces.push(`${player.weight} lb`);
-  metaEl.innerHTML = pieces.map((p) => `<span>${p}</span>`).join('');
+  const players = playersState.filteredPlayers || [];
 
-  tagsEl.innerHTML = '';
-
-  const idTag = document.createElement('span');
-  idTag.className = 'tag tag-secondary';
-  idTag.textContent = `ID: ${playerId}`;
-  tagsEl.appendChild(idTag);
-
-  if (player?.jersey) {
-    const jerseyTag = document.createElement('span');
-    jerseyTag.className = 'tag tag-secondary';
-    jerseyTag.textContent = `#${player.jersey}`;
-    tagsEl.appendChild(jerseyTag);
+  if (countEl) {
+    countEl.textContent = String(players.length);
   }
-}
 
-/**
- * Season snapshot (simple quick row summary)
- */
-function renderPlayerDetailSeasonSnapshot(player, gameLogs) {
-  const container = document.getElementById('player-detail-season-snapshot');
-  container.innerHTML = '';
-
-  const hasLogs = Array.isArray(gameLogs) && gameLogs.length > 0;
-
-  const metaDiv = document.createElement('div');
-  metaDiv.className = 'player-detail-stat-row';
-  const team = player?.team || '';
-  const pos = player?.pos || '';
-  metaDiv.innerHTML = `
-    <div class="player-detail-stat-label">
-      Team: <strong>${team}</strong> · Pos: <strong>${pos}</strong>
-    </div>
-    <div class="player-detail-stat-values">
-      <span class="tag tag-secondary">${hasLogs ? gameLogs.length : 0} GP</span>
-    </div>
-  `;
-  container.appendChild(metaDiv);
-
-  if (!hasLogs) {
-    const noData = document.createElement('div');
-    noData.className = 'inline-status';
-    noData.textContent = 'No game logs available.';
-    container.appendChild(noData);
+  if (players.length === 0) {
+    grid.innerHTML = "";
+    empty.classList.remove("hidden");
+    setPlayerSubtitle("0 Players");
     return;
   }
 
-  const fields = ['pts', 'reb', 'ast'];
-  const seasonAvg = computeAverages(gameLogs, fields);
-  const last10Avg = computeAverages(gameLogs, fields, 10);
-  const last5Avg = computeAverages(gameLogs, fields, 5);
+  empty.classList.add("hidden");
+  setPlayerSubtitle(
+    `${players.length} players • All teams • No game context required`
+  );
 
-  fields.forEach((f) => {
-    const label = f.toUpperCase();
-    const row = document.createElement('div');
-    row.className = 'player-detail-stat-row';
-
-    const fmt = (v) =>
-      v == null || Number.isNaN(v) ? '-' : (v.toFixed ? v.toFixed(1) : v);
-
-    row.innerHTML = `
-      <div class="player-detail-stat-label">${label}</div>
-      <div class="player-detail-stat-values">
-        <span>Season: <strong>${fmt(seasonAvg[f])}</strong></span>
-        <span>L10: <strong>${fmt(last10Avg[f])}</strong></span>
-        <span>L5: <strong>${fmt(last5Avg[f])}</strong></span>
-      </div>
-    `;
-
-    container.appendChild(row);
-  });
+  const cards = players.map((p) => renderPlayerCard(p)).join("");
+  grid.innerHTML = cards;
 }
 
-/**
- * Game log (recent 10 games)
- */
-function renderPlayerDetailGameLog(gameLogs) {
-  const container = document.getElementById('player-detail-gamelog');
-  container.innerHTML = '';
+function renderPlayerCard(p) {
+  const name = escapeHtml(p.name || "");
+  const pos = escapeHtml(p.pos || "");
+  const idStr = p.id != null ? `ID ${p.id}` : "";
+  const team = escapeHtml(p.team || "");
+  const height = escapeHtml(p.height || "–");
+  const weight = p.weight ? `${p.weight} lb` : "–";
+  const jersey = p.jersey ? `#${p.jersey}` : "—";
+  const id = p.id != null ? String(p.id) : "";
 
-  if (!Array.isArray(gameLogs) || gameLogs.length === 0) {
-    container.textContent = 'No game logs.';
-    return;
-  }
-
-  const recent = gameLogs.slice(0, 10);
-  recent.forEach((g) => {
-    const row = document.createElement('div');
-    row.className = 'player-detail-gamelog-row';
-
-    const date = g.game_date || g.date || '';
-    const opp = g.opponent || g.opp || '';
-    const homeAway = g.home_away || g.ha || '';
-    const pts = g.pts ?? g.points;
-    const reb = g.reb ?? g.rebounds;
-    const ast = g.ast ?? g.assists;
-
-    row.innerHTML = `
-      <div class="player-detail-gamelog-date">${date}</div>
-      <div class="player-detail-gamelog-opp">
-        ${homeAway || ''} vs ${opp}
-        <div class="player-detail-gamelog-line">
-          Line: ${
-            g.line_pts != null
-              ? `PTS ${g.line_pts}`
-              : g.prop_pts_line != null
-              ? `PTS ${g.prop_pts_line}`
-              : ''
-          }
+  return `
+    <div class="player-card"
+         data-player-id="${id}"
+         data-player-name="${name}"
+         data-player-team="${team}"
+         data-player-pos="${pos}">
+      <div class="player-card-header">
+        <div>
+          <div class="player-name">${name}</div>
+          <div class="player-meta-line">
+            ${pos ? `${pos}` : ""}${idStr ? ` • ${idStr}` : ""}
+          </div>
+          <div class="player-tagline">
+            Always available • Player-only view
+          </div>
+        </div>
+        <div class="player-badge">
+          ${team || "FA"}
         </div>
       </div>
-      <div class="player-detail-gamelog-statline">
-        ${pts != null ? `P:${pts}` : ''} ${
-      reb != null ? `R:${reb}` : ''
-    } ${ast != null ? `A:${ast}` : ''}
+      <div class="player-body-row">
+        <span>Height</span>
+        <span>${height}</span>
       </div>
-    `;
-
-    container.appendChild(row);
-  });
-}
-
-/**
- * Season averages table (Season / Last 10 / Last 5)
- */
-function renderPlayerDetailSeasonAverages(gameLogs) {
-  const tbody = document.getElementById(
-    'player-detail-season-averages-body',
-  );
-  tbody.innerHTML = '';
-
-  if (!Array.isArray(gameLogs) || gameLogs.length === 0) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="4">No game logs.</td>';
-    tbody.appendChild(tr);
-    return;
-  }
-
-  const fields = ['pts', 'reb', 'ast'];
-  const seasonAvg = computeAverages(gameLogs, fields);
-  const last10Avg = computeAverages(gameLogs, fields, 10);
-  const last5Avg = computeAverages(gameLogs, fields, 5);
-
-  const fmt = (v) =>
-    v == null || Number.isNaN(v) ? '-' : (v.toFixed ? v.toFixed(1) : v);
-
-  fields.forEach((f) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${f.toUpperCase()}</td>
-      <td>${fmt(seasonAvg[f])}</td>
-      <td>${fmt(last10Avg[f])}</td>
-      <td>${fmt(last5Avg[f])}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-/**
- * Prop preview (per stat: PTS / REB / AST)
- */
-function filterEdgesForPlayer(edges, playerId, rosterPlayer) {
-  if (!Array.isArray(edges) || edges.length === 0) return [];
-
-  const name =
-    rosterPlayer?.name ||
-    `${rosterPlayer?.first_name || ''} ${
-      rosterPlayer?.last_name || ''
-    }`.trim();
-
-  return edges.filter((e) => {
-    if (e.player_id != null && String(e.player_id) === String(playerId)) {
-      return true;
-    }
-    if (name) {
-      const n = name.toLowerCase();
-      const ep = (e.player_name || e.player || '').toLowerCase();
-      if (ep === n) return true;
-    }
-    return false;
-  });
-}
-
-function renderPlayerDetailPropPreview(player, playerId, edgesByStat) {
-  const container = document.getElementById('player-detail-prop-preview');
-  container.innerHTML = '';
-
-  const stats = ['pts', 'reb', 'ast'];
-  let any = false;
-
-  stats.forEach((stat) => {
-    const all = edgesByStat[stat] || [];
-    const filtered = filterEdgesForPlayer(all, playerId, player)
-      .slice()
-      .sort((a, b) => {
-        const ea =
-          a.edge != null ? a.edge : a.ev_edge != null ? a.ev_edge : 0;
-        const eb =
-          b.edge != null ? b.edge : b.ev_edge != null ? b.ev_edge : 0;
-        return Number(eb) - Number(ea);
-      })
-      .slice(0, 5);
-
-    if (filtered.length === 0) return;
-
-    any = true;
-    const group = document.createElement('div');
-    group.className = 'prop-preview-group';
-
-    const header = document.createElement('div');
-    header.className = 'prop-preview-header';
-    header.innerHTML = `
-      <div class="prop-preview-header-left">
-        <span class="prop-preview-stat-label">${stat.toUpperCase()}</span>
-        <span class="tag tag-secondary">${filtered.length} edges</span>
+      <div class="player-body-row">
+        <span>Weight</span>
+        <span>${weight}</span>
       </div>
-    `;
-    group.appendChild(header);
+      <div class="player-body-row">
+        <span>Jersey</span>
+        <span>${jersey}</span>
+      </div>
+      <span class="jersey-pill">${jersey}</span>
+    </div>
+  `;
+}
 
-    filtered.forEach((e) => {
-      const row = document.createElement('div');
-      row.className = 'prop-preview-row';
+function setPlayerSubtitle(text) {
+  const el = document.getElementById("player-board-subtitle");
+  if (el) el.textContent = text;
+}
 
-      const book = e.book || '';
-      const line =
-        e.line != null
-          ? e.line
-          : e.prop_line != null
-          ? e.prop_line
-          : e.market_line;
-      const proj = e.proj != null ? e.proj : e.projection;
-      const edgeVal =
-        e.edge != null ? e.edge : e.ev_edge != null ? e.ev_edge : null;
+function updateSnapshot() {
+  const snap = playersState.snapshot;
+  const teamsEl = document.getElementById("snapshot-teams");
+  const gEl = document.getElementById("snapshot-guards");
+  const fEl = document.getElementById("snapshot-forwards");
+  const cEl = document.getElementById("snapshot-centers");
 
-      row.innerHTML = `
-        <div>${book}</div>
-        <div>${line != null ? line : '-'}</div>
-        <div>${proj != null ? proj.toFixed ? proj.toFixed(1) : proj : '-'}</div>
-        <div>${
-          edgeVal != null
-            ? edgeVal.toFixed
-              ? edgeVal.toFixed(1)
-              : edgeVal
-            : '-'
-        }%</div>
-      `;
+  if (teamsEl) teamsEl.textContent = String(snap.uniqueTeams || 0);
+  if (gEl) gEl.textContent = String(snap.guards || 0);
+  if (fEl) fEl.textContent = String(snap.forwards || 0);
+  if (cEl) cEl.textContent = String(snap.centers || 0);
+}
 
-      group.appendChild(row);
+/* ---------------- GAMES ---------------- */
+
+let gamesLoaded = false;
+
+function setupGamesView() {
+  const toggles = document.querySelectorAll("[data-games-range]");
+  toggles.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      toggles.forEach((b) => b.classList.toggle("active", b === btn));
+      loadGames(btn.dataset.gamesRange || "today");
     });
-
-    container.appendChild(group);
   });
-
-  if (!any) {
-    container.textContent = 'No props currently available for this player.';
-  }
 }
 
-/**
- * Edge Board modal (global, plus per-player prefilter)
- */
-async function openEdgeBoardForPlayer(playerId, rosterPlayer) {
-  // For now just open the full Edge Board modal and highlight the player.
+function ensureGamesLoaded() {
+  if (gamesLoaded) return;
+  const active = document.querySelector("[data-games-range].active");
+  const range = active?.dataset.gamesRange || "today";
+  loadGames(range);
+}
+
+async function loadGames(range) {
+  const list = document.getElementById("games-list");
+  if (!list) return;
+  list.innerHTML = `<p class="muted">Loading games...</p>`;
+
   try {
-    const edges = await fetchJSON(`/api/edges?stat=pts&limit=200`);
-    const list = Array.isArray(edges) ? edges : edges.data || [];
-    const filtered = filterEdgesForPlayer(list, playerId, rosterPlayer);
-    openEdgeBoardModal(filtered.length ? filtered : list);
+    const { dateStr } = buildDate(range);
+    const res = await fetch(`/api/games?date=${dateStr}`);
+    if (!res.ok) throw new Error("Failed to load games");
+    const json = await res.json();
+    const games = json.data || [];
+    gamesLoaded = true;
+
+    if (games.length === 0) {
+      list.innerHTML = `<p class="muted">No games for ${dateStr}.</p>`;
+      return;
+    }
+
+    const rows = games.map((g) => renderGameRow(g, dateStr)).join("");
+    list.innerHTML = `<div class="overview-list">${rows}</div>`;
   } catch (err) {
     console.error(err);
-    openEdgeBoardModal([]);
+    list.innerHTML = `<p class="muted">Error loading games.</p>`;
   }
 }
 
-function openEdgeBoardModal(edges) {
-  const overlay = document.getElementById('modal-overlay');
-  const modal = document.getElementById('edgeboard-modal');
-  overlay.classList.remove('hidden');
-  modal.classList.add('active');
+function renderGameRow(g, dateStr) {
+  const homeRaw =
+    g.home_team_abbr ||
+    (g.home_team && g.home_team.abbreviation) ||
+    g.home_team ||
+    "HOME";
+  const awayRaw =
+    g.away_team_abbr ||
+    (g.away_team && g.away_team.abbreviation) ||
+    g.away_team ||
+    "AWAY";
 
-  const body = document.getElementById('edgeboard-modal-body');
-  body.innerHTML = '';
+  const home = escapeHtml(homeRaw);
+  const away = escapeHtml(awayRaw);
 
-  if (!edges || edges.length === 0) {
-    body.textContent = 'No edges.';
+  const tip =
+    g.start_time_local ||
+    g.tipoff ||
+    g.start_time ||
+    "";
+  const tipText = tip ? String(tip).slice(11, 16) : "TBD";
+
+  const gameId =
+    g.game_id ||
+    g.id ||
+    `${homeRaw}-${awayRaw}-${dateStr || ""}`;
+
+  return `
+    <div class="overview-row"
+         data-game-id="${escapeHtml(gameId)}"
+         data-game-home="${home}"
+         data-game-away="${away}"
+         data-game-tip="${escapeHtml(tipText)}"
+         data-game-date="${escapeHtml(dateStr || "")}">
+      <div class="overview-row-main">
+        <span>${away} @ ${home}</span>
+        <span class="muted">Tip: ${tipText}</span>
+      </div>
+      <div class="overview-row-meta">
+        <span class="badge-soft">Matchup</span>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------------- TEAMS ---------------- */
+
+let teamsLoaded = false;
+let cachedTeams = [];
+
+function setupTeamsView() {}
+
+function ensureTeamsLoaded() {
+  if (teamsLoaded) {
+    populateEdgeBoardTeamsFilter();
+    return;
+  }
+  loadTeams();
+}
+
+async function loadTeams() {
+  const list = document.getElementById("teams-list");
+  const filterSelect = document.getElementById("teams-filter-team");
+  const overviewFilter = document.getElementById("overview-teams-filter");
+  if (!list) return;
+  list.innerHTML = `<p class="muted">Loading teams...</p>`;
+
+  try {
+    const res = await fetch("/api/teams");
+    if (!res.ok) throw new Error("Failed to load teams");
+    const json = await res.json();
+    const teams = json.data || [];
+    teamsLoaded = true;
+    cachedTeams = teams;
+
+    if (filterSelect) {
+      const opts = ['<option value="">All teams</option>'];
+      teams.forEach((t) => {
+        if (!t.team) return;
+        opts.push(
+          `<option value="${escapeHtml(t.team)}">${escapeHtml(
+            t.team
+          )}</option>`
+        );
+      });
+      filterSelect.innerHTML = opts.join("");
+      filterSelect.addEventListener("change", () => {
+        renderTeamsList(teams, filterSelect.value || "");
+      });
+    }
+
+    if (overviewFilter) {
+      const opts = ['<option value="">All teams</option>'];
+      teams.forEach((t) => {
+        if (!t.team) return;
+        opts.push(
+          `<option value="${escapeHtml(t.team)}">${escapeHtml(
+            t.team
+          )}</option>`
+        );
+      });
+      overviewFilter.innerHTML = opts.join("");
+      overviewFilter.addEventListener("change", () => {
+        renderTeamsOverview(teams, overviewFilter.value || "");
+      });
+    }
+
+    renderTeamsList(teams, "");
+    renderTeamsOverview(teams, "");
+    populateEdgeBoardTeamsFilter();
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = `<p class="muted">Error loading teams.</p>`;
+  }
+}
+
+function renderTeamsList(teams, filterTeam) {
+  const list = document.getElementById("teams-list");
+  if (!list) return;
+
+  let visible = teams;
+  if (filterTeam) {
+    visible = teams.filter((t) => t.team === filterTeam);
+  }
+
+  if (!visible.length) {
+    list.innerHTML = `<p class="muted">No teams.</p>`;
     return;
   }
 
-  edges.slice(0, 200).forEach((e) => {
-    const div = document.createElement('div');
-    div.className = 'player-detail-stat-row';
-    const player = e.player_name || e.player || '';
-    const team = e.team || '';
-    const stat = e.stat || e.market || '';
-    const book = e.book || '';
-    const line =
-      e.line != null
-        ? e.line
-        : e.prop_line != null
-        ? e.prop_line
-        : e.market_line;
-    const edgeVal =
-      e.edge != null ? e.edge : e.ev_edge != null ? e.ev_edge : null;
+  const rows = visible
+    .map((t) => {
+      const name = escapeHtml(t.full_name || t.name || t.team);
+      const abbr = escapeHtml(t.team);
+      const guards = t.counts?.guards ?? 0;
+      const forwards = t.counts?.forwards ?? 0;
+      const centers = t.counts?.centers ?? 0;
+      const total = t.counts?.totalPlayers ?? 0;
 
-    div.innerHTML = `
-      <div class="player-detail-stat-label">
-        <strong>${player}</strong> · ${team}
-        <div class="player-detail-gamelog-line">${book} · ${stat} ${
-      line != null ? `@ ${line}` : ''
-    }</div>
-      </div>
-      <div class="player-detail-stat-values">
-        <span class="tag ${
-          edgeVal != null && edgeVal >= 5 ? 'tag-accent' : 'tag-secondary'
-        }">
-          ${edgeVal != null ? (edgeVal.toFixed ? edgeVal.toFixed(1) : edgeVal) : ''}%
-        </span>
-      </div>
-    `;
+      return `
+        <div class="team-row">
+          <div class="team-header">
+            ${name}
+            <div class="team-sub">${abbr} • ${total} players</div>
+          </div>
+          <div class="overview-row-meta">
+            <div class="team-sub">G: ${guards} • F: ${forwards} • C: ${centers}</div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
 
-    div.addEventListener('click', () => {
-      if (e.player_id != null) {
-        navigateToPlayerDetail(String(e.player_id));
-      }
+  list.innerHTML = `<div class="teams-list">${rows}</div>`;
+}
+
+function renderTeamsOverview(teams, filterTeam) {
+  const el = document.getElementById("overview-teams");
+  if (!el) return;
+
+  let visible = teams;
+  if (filterTeam) {
+    visible = teams.filter((t) => t.team === filterTeam);
+  }
+
+  if (!visible.length) {
+    el.innerHTML = `<p class="muted">No team data.</p>`;
+    return;
+  }
+
+  const rows = visible
+    .slice(0, 8)
+    .map((t) => {
+      const name = escapeHtml(t.team);
+      const total = t.counts?.totalPlayers ?? 0;
+      return `
+        <div class="overview-row">
+          <div class="overview-row-main">
+            <span>${name}</span>
+            <span class="muted">${total} players</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  el.innerHTML = `<div class="overview-list">${rows}</div>`;
+}
+
+/* ---------------- TRENDS ---------------- */
+
+let trendsLoaded = false;
+
+function setupTrendsView() {
+  const statSelect = document.getElementById("trends-stat");
+  const posSelect = document.getElementById("trends-position");
+
+  if (statSelect) {
+    statSelect.addEventListener("change", () => {
+      loadTrends(statSelect.value, posSelect?.value || "");
+    });
+  }
+  if (posSelect) {
+    posSelect.addEventListener("change", () => {
+      loadTrends(statSelect?.value || "pts", posSelect.value);
+    });
+  }
+}
+
+function ensureTrendsLoaded() {
+  if (trendsLoaded) return;
+  const statSelect = document.getElementById("trends-stat");
+  const posSelect = document.getElementById("trends-position");
+  const stat = statSelect?.value || "pts";
+  const pos = posSelect?.value || "";
+  loadTrends(stat, pos);
+}
+
+async function loadTrends(stat, pos) {
+  const list = document.getElementById("trends-list");
+  if (!list) return;
+
+  list.innerHTML = `<p class="muted">Loading trends...</p>`;
+
+  try {
+    const params = new URLSearchParams();
+    params.set("stat", stat);
+    if (pos) params.set("position", pos);
+
+    const res = await fetch(`/api/trending?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to load trending");
+    const json = await res.json();
+    const data = json.data || [];
+    trendsLoaded = true;
+
+    if (!data.length) {
+      list.innerHTML = `<p class="muted">No trending players available.</p>`;
+      return;
+    }
+
+    const rows = data.map((p) => renderTrendRow(p)).join("");
+    list.innerHTML = `<div class="trends-list">${rows}</div>`;
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = `<p class="muted">Error loading trends.</p>`;
+  }
+}
+
+function renderTrendRow(p) {
+  const name = escapeHtml(p.name);
+  const team = escapeHtml(p.team || "");
+  const pos = escapeHtml(p.pos || "");
+  const stat = p.stat || "pts";
+  const val = p.score != null ? p.score.toFixed(1) : "–";
+  const id =
+    p.player_id != null
+      ? String(p.player_id)
+      : p.id != null
+      ? String(p.id)
+      : "";
+
+  return `
+    <div class="trend-row"
+         data-player-id="${id}"
+         data-player-name="${name}"
+         data-player-team="${team}"
+         data-player-pos="${pos}">
+      <div class="trend-main">
+        <span>${name}</span>
+        <span class="muted">${team}${pos ? " • " + pos : ""}</span>
+      </div>
+      <div class="trend-meta">
+        <div>${val} ${stat.toUpperCase()}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------------- OVERVIEW ---------------- */
+
+let overviewLoaded = false;
+
+function setupOverviewView() {
+  const edgesStatSelect = document.getElementById("overview-edges-stat");
+  if (edgesStatSelect) {
+    edgesStatSelect.addEventListener("change", () => {
+      const stat = edgesStatSelect.value || "pts";
+      loadOverviewEdges(stat);
+      loadOverviewEdgeBoard();
+    });
+  }
+
+  const trendingStatSelect = document.getElementById("overview-trending-stat");
+  if (trendingStatSelect) {
+    trendingStatSelect.addEventListener("change", () => {
+      loadOverviewTrending(trendingStatSelect.value || "pts");
+    });
+  }
+}
+
+function ensureOverviewLoaded() {
+  if (overviewLoaded) return;
+  loadOverview();
+}
+
+function loadOverview() {
+  overviewLoaded = true;
+  const edgesStatSelect = document.getElementById("overview-edges-stat");
+  const trendingStatSelect = document.getElementById("overview-trending-stat");
+
+  loadOverviewGames();
+  loadOverviewEdges(edgesStatSelect?.value || "pts");
+  loadOverviewTrending(trendingStatSelect?.value || "pts");
+  ensureTeamsLoaded();
+  loadOverviewEdgeBoard();
+}
+
+// Today's Games card in Overview
+async function loadOverviewGames() {
+  const body = document.getElementById("overview-games");
+  const countEl = document.getElementById("overview-games-count");
+  if (!body) return;
+  body.innerHTML = `<p class="muted">Loading games...</p>`;
+
+  try {
+    const { dateStr } = buildDate("today");
+    const res = await fetch(`/api/games?date=${dateStr}`);
+    if (!res.ok) throw new Error("Failed to load games");
+    const json = await res.json();
+    const games = json.data || [];
+
+    if (countEl) {
+      countEl.textContent = `${games.length} games`;
+    }
+
+    if (!games.length) {
+      body.innerHTML = `<p class="muted">No games for ${dateStr}.</p>`;
+      return;
+    }
+
+    const rows = games.map((g) => renderGameRow(g, dateStr)).join("");
+    body.innerHTML = `<div class="overview-list">${rows}</div>`;
+  } catch (err) {
+    console.error(err);
+    body.innerHTML = `<p class="muted">Error loading games.</p>`;
+  }
+}
+
+async function loadOverviewEdges(stat) {
+  const el = document.getElementById("overview-edges");
+  if (!el) return;
+  el.innerHTML = `<p class="muted">Loading edge candidates...</p>`;
+
+  try {
+    const params = new URLSearchParams();
+    params.set("stat", stat);
+    params.set("limit", "6");
+    const res = await fetch(`/api/edges?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to load edges");
+    const json = await res.json();
+    const data = json.data || [];
+
+    if (!data.length) {
+      el.innerHTML = `<p class="muted">No edge candidates available.</p>`;
+      return;
+    }
+
+    const rows = data
+      .map((p) => {
+        const name = escapeHtml(p.name);
+        const team = escapeHtml(p.team || "");
+        const pos = escapeHtml(p.pos || "");
+        const delta = p.delta != null ? p.delta.toFixed(1) : "–";
+        const recent = p.recent != null ? p.recent.toFixed(1) : "–";
+        const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
+        const id =
+          p.player_id != null
+            ? String(p.player_id)
+            : p.id != null
+            ? String(p.id)
+            : "";
+
+        return `
+          <div class="overview-row"
+               data-player-id="${id}"
+               data-player-name="${name}"
+               data-player-team="${team}"
+               data-player-pos="${pos}">
+            <div class="overview-row-main">
+              <span>${name}</span>
+              <span class="muted">${team}${pos ? " • " + pos : ""}</span>
+            </div>
+            <div class="overview-row-meta">
+              <div class="team-sub">Recent: ${recent}</div>
+              <div class="team-sub">Season: ${season}</div>
+              <div class="badge-soft">Δ ${delta}</div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    el.innerHTML = `<div class="overview-list">${rows}</div>`;
+  } catch (err) {
+    console.error(err);
+    el.innerHTML = `<p class="muted">Error loading edge candidates.</p>`;
+  }
+}
+
+async function loadOverviewTrending(stat) {
+  const el = document.getElementById("overview-trending");
+  if (!el) return;
+  el.innerHTML = `<p class="muted">Loading trending players...</p>`;
+
+  try {
+    const params = new URLSearchParams();
+    params.set("stat", stat);
+    params.set("limit", "6");
+    const res = await fetch(`/api/trending?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to load trending");
+    const json = await res.json();
+    const data = json.data || [];
+
+    if (!data.length) {
+      el.innerHTML = `<p class="muted">No trending players.</p>`;
+      return;
+    }
+
+    const rows = data
+      .map((p) => {
+        const name = escapeHtml(p.name);
+        const team = escapeHtml(p.team || "");
+        const pos = escapeHtml(p.pos || "");
+        const score = p.score != null ? p.score.toFixed(1) : "–";
+        const id =
+          p.player_id != null
+            ? String(p.player_id)
+            : p.id != null
+            ? String(p.id)
+            : "";
+
+        return `
+          <div class="overview-row"
+               data-player-id="${id}"
+               data-player-name="${name}"
+               data-player-team="${team}"
+               data-player-pos="${pos}">
+            <div class="overview-row-main">
+              <span>${name}</span>
+              <span class="muted">${team}${pos ? " • " + pos : ""}</span>
+            </div>
+            <div class="overview-row-meta">
+              <div>${score} ${stat.toUpperCase()}</div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    el.innerHTML = `<div class="overview-list">${rows}</div>`;
+  } catch (err) {
+    console.error(err);
+    el.innerHTML = `<p class="muted">Error loading trending players.</p>`;
+  }
+}
+
+// Edge Board summary: combine top edges across PTS/REB/AST
+async function loadOverviewEdgeBoard() {
+  const el = document.getElementById("overview-edgeboard");
+  if (!el) return;
+  el.innerHTML = `<p class="muted">Loading edge board...</p>`;
+
+  try {
+    const stats = ["pts", "reb", "ast"];
+    const labels = { pts: "PTS", reb: "REB", ast: "AST" };
+
+    const promises = stats.map((s) =>
+      fetch(`/api/edges?stat=${s}&limit=3`).then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error("edges fetch failed"))
+      )
+    );
+
+    const results = await Promise.allSettled(promises);
+    const rows = [];
+
+    results.forEach((res, idx) => {
+      if (res.status !== "fulfilled") return;
+      const stat = stats[idx];
+      const data = res.value.data || [];
+      data.forEach((p) => {
+        rows.push({ ...p, stat });
+      });
     });
 
-    body.appendChild(div);
-  });
-}
-
-/**
- * Player modal (legacy)
- */
-function openPlayerModal(player) {
-  const overlay = document.getElementById('modal-overlay');
-  const modal = document.getElementById('player-modal');
-  overlay.classList.remove('hidden');
-  modal.classList.add('active');
-
-  const titleEl = document.getElementById('player-modal-title');
-  const bodyEl = document.getElementById('player-modal-body');
-
-  const name =
-    player?.name ||
-    `${player?.first_name || ''} ${player?.last_name || ''}`.trim();
-  titleEl.textContent = name;
-
-  bodyEl.innerHTML = `
-    <div class="player-detail-stat-row">
-      <div class="player-detail-stat-label">Team</div>
-      <div class="player-detail-stat-values">${player.team || ''}</div>
-    </div>
-    <div class="player-detail-stat-row">
-      <div class="player-detail-stat-label">Pos</div>
-      <div class="player-detail-stat-values">${player.pos || ''}</div>
-    </div>
-  `;
-}
-
-/**
- * Game modal
- */
-function openGameModal(game) {
-  const overlay = document.getElementById('modal-overlay');
-  const modal = document.getElementById('game-modal');
-  overlay.classList.remove('hidden');
-  modal.classList.add('active');
-
-  const titleEl = document.getElementById('game-modal-title');
-  const bodyEl = document.getElementById('game-modal-body');
-
-  const home = game.home_team || game.home || '';
-  const away = game.away_team || game.away || '';
-  const time = game.time || '';
-
-  titleEl.textContent = `${away} @ ${home}`;
-
-  bodyEl.innerHTML = `
-    <div class="player-detail-stat-row">
-      <div class="player-detail-stat-label">Tip</div>
-      <div class="player-detail-stat-values">${time}</div>
-    </div>
-    <div class="player-detail-stat-row">
-      <div class="player-detail-stat-label">Spread</div>
-      <div class="player-detail-stat-values">${game.spread || '-'}</div>
-    </div>
-    <div class="player-detail-stat-row">
-      <div class="player-detail-stat-label">Total</div>
-      <div class="player-detail-stat-values">${game.total || '-'}</div>
-    </div>
-  `;
-}
-
-/**
- * Modal close wiring
- */
-function setupModals() {
-  const overlay = document.getElementById('modal-overlay');
-  overlay.addEventListener('click', (evt) => {
-    if (evt.target === overlay) {
-      closeAllModals();
+    if (!rows.length) {
+      el.innerHTML = `<p class="muted">No edge candidates available yet.</p>`;
+      return;
     }
-  });
 
-  document.querySelectorAll('[data-modal-close]').forEach((btn) => {
-    btn.addEventListener('click', () => closeAllModals());
-  });
-}
+    rows.sort((a, b) => (b.delta || 0) - (a.delta || 0));
 
-function closeAllModals() {
-  const overlay = document.getElementById('modal-overlay');
-  overlay.classList.add('hidden');
-  document.querySelectorAll('.modal').forEach((m) => m.classList.remove('active'));
-}
+    const html = rows
+      .map((p) => {
+        const name = escapeHtml(p.name);
+        const team = escapeHtml(p.team || "");
+        const pos = escapeHtml(p.pos || "");
+        const statLabel = labels[p.stat] || p.stat.toUpperCase();
+        const recent = p.recent != null ? p.recent.toFixed(1) : "–";
+        const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
+        const delta = p.delta != null ? p.delta.toFixed(1) : "–";
+        const id =
+          p.player_id != null
+            ? String(p.player_id)
+            : p.id != null
+            ? String(p.id)
+            : "";
 
-/**
- * Init
- */
-async function initApp() {
-  AppState.today = getTodayISO();
+        return `
+          <div class="overview-row"
+               data-player-id="${id}"
+               data-player-name="${name}"
+               data-player-team="${team}"
+               data-player-pos="${pos}">
+            <div class="overview-row-main">
+              <span>${name}</span>
+              <span class="muted">${team}${pos ? " • " + pos : ""}</span>
+            </div>
+            <div class="overview-row-meta">
+              <div class="team-sub">${statLabel}</div>
+              <div class="team-sub">Recent: ${recent} • Season: ${season}</div>
+              <div class="badge-soft">Δ ${delta}</div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
 
-  const todayLabel = document.getElementById('today-date');
-  if (todayLabel) {
-    todayLabel.textContent = formatISOForLabel(AppState.today);
-  }
-
-  setupNav();
-  setupGlobalSearch();
-  setupGamesToolbar();
-  setupPlayersFilters();
-  setupTrendsFilters();
-  setupModals();
-  initRouter();
-
-  // Preload key data for snappy switching.
-  try {
-    await Promise.all([
-      loadOverview(),
-      loadGames(),
-      loadPlayers(),
-      loadTeams(),
-      loadTrends('pts', 25),
-    ]);
+    el.innerHTML = `<div class="overview-list">${html}</div>`;
   } catch (err) {
-    console.error('Initial load error', err);
+    console.error(err);
+    el.innerHTML = `<p class="muted">Error loading edge board.</p>`;
   }
 }
 
-document.addEventListener('DOMContentLoaded', initApp);
+/* ---------------- PLAYER MODAL ---------------- */
+
+function setupPlayerModal() {
+  const modal = document.getElementById("player-modal");
+  if (!modal) return;
+
+  const closeBtn = document.getElementById("modal-close");
+  const backdrop = modal.querySelector(".modal-backdrop");
+
+  if (closeBtn) closeBtn.addEventListener("click", closePlayerModal);
+  if (backdrop) backdrop.addEventListener("click", closePlayerModal);
+
+  document.addEventListener("click", (evt) => {
+    const target = evt.target.closest("[data-player-id]");
+    if (!target) return;
+
+    const id = target.dataset.playerId || "";
+    const name = target.dataset.playerName || "";
+    const team = target.dataset.playerTeam || "";
+    const pos = target.dataset.playerPos || "";
+
+    if (!id) return;
+
+    openPlayerModal({ id, name, team, pos });
+  });
+}
+
+function openPlayerModal(player) {
+  const modal = document.getElementById("player-modal");
+  if (!modal) return;
+
+  modal.classList.remove("hidden");
+
+  const nameEl = document.getElementById("modal-player-name");
+  const metaEl = document.getElementById("modal-player-meta");
+  const summaryEl = document.getElementById("modal-summary");
+  const tbody = document.getElementById("modal-stats-rows");
+
+  if (nameEl) nameEl.textContent = player.name || "Player";
+  if (metaEl) {
+    const bits = [];
+    if (player.team) bits.push(player.team);
+    if (player.pos) bits.push(player.pos);
+    if (player.id) bits.push(`ID ${player.id}`);
+    metaEl.textContent = bits.join(" • ");
+  }
+
+  if (summaryEl)
+    summaryEl.textContent = "Loading last games from BallDontLie...";
+  if (tbody) {
+    tbody.innerHTML =
+      '<tr><td colspan="6" class="muted">Loading...</td></tr>';
+  }
+
+  if (!player.id) {
+    if (summaryEl) summaryEl.textContent = "No player id available.";
+    if (tbody) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="muted">No stats to display.</td></tr>';
+    }
+    return;
+  }
+
+  loadPlayerStats(player.id, summaryEl, tbody);
+}
+
+function closePlayerModal() {
+  const modal = document.getElementById("player-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+async function loadPlayerStats(playerId, summaryEl, tbody) {
+  try {
+    const url = `/api/stats?player_id=${encodeURIComponent(
+      playerId
+    )}&last_n=10`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("stats fetch failed");
+    const json = await res.json();
+    const rows = json.data || [];
+    const meta = json.meta || {};
+
+    if (!rows.length) {
+      if (summaryEl)
+        summaryEl.textContent =
+          "No recent games found.";
+      if (tbody) {
+        tbody.innerHTML =
+          '<tr><td colspan="6" class="muted">No rows.</td></tr>';
+      }
+      return;
+    }
+
+    const lastN = meta.lastN || rows.length;
+    const teamMeta = meta.team || meta.teamAbbr || "";
+    if (summaryEl) {
+      summaryEl.textContent = `Last ${lastN} games${
+        teamMeta ? ` • ${teamMeta}` : ""
+      }`;
+    }
+
+    const trHtml = rows
+      .map((r) => {
+        const date = r.game_date || r.date || "";
+        const opp = r.opponent || r.opp || "";
+        const min =
+          r.min != null ? r.min : r.minutes != null ? r.minutes : "";
+        const pts = r.pts != null ? r.pts : "";
+        const reb = r.reb != null ? r.reb : r.reb_tot != null ? r.reb_tot : "";
+        const ast = r.ast != null ? r.ast : "";
+
+        return `<tr>
+          <td class="cell-left">${escapeHtml(String(date).slice(5))}</td>
+          <td class="cell-left">${escapeHtml(opp)}</td>
+          <td>${escapeHtml(min)}</td>
+          <td>${escapeHtml(pts)}</td>
+          <td>${escapeHtml(reb)}</td>
+          <td>${escapeHtml(ast)}</td>
+        </tr>`;
+      })
+      .join("");
+    if (tbody) tbody.innerHTML = trHtml;
+  } catch (err) {
+    console.error(err);
+    if (summaryEl) summaryEl.textContent = "Error loading stats.";
+    if (tbody) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="muted">Error loading stats.</td></tr>';
+    }
+  }
+}
+
+/* ---------------- GAME MODAL ---------------- */
+
+let currentGameContext = null;
+
+function setupGameModal() {
+  const modal = document.getElementById("game-modal");
+  if (!modal) return;
+
+  const closeBtn = document.getElementById("game-modal-close");
+  const backdrop = modal.querySelector(".modal-backdrop");
+  const statSelect = document.getElementById("game-modal-stat");
+
+  if (closeBtn) closeBtn.addEventListener("click", closeGameModal);
+  if (backdrop) backdrop.addEventListener("click", closeGameModal);
+
+  if (statSelect) {
+    statSelect.addEventListener("change", () => {
+      if (!currentGameContext) return;
+      loadGameContext(currentGameContext, statSelect.value || "pts");
+    });
+  }
+
+  document.addEventListener("click", (evt) => {
+    const row = evt.target.closest("[data-game-id]");
+    if (!row) return;
+
+    const id = row.dataset.gameId || "";
+    const home = row.dataset.gameHome || "";
+    const away = row.dataset.gameAway || "";
+    const tip = row.dataset.gameTip || "TBD";
+    const date = row.dataset.gameDate || "";
+
+    openGameModal({ id, home, away, tip, date });
+  });
+}
+
+function openGameModal(info) {
+  const modal = document.getElementById("game-modal");
+  const titleEl = document.getElementById("game-modal-title");
+  const metaEl = document.getElementById("game-modal-meta");
+  const statSelect = document.getElementById("game-modal-stat");
+
+  if (!modal) return;
+
+  currentGameContext = info;
+  modal.classList.remove("hidden");
+
+  if (titleEl) {
+    titleEl.textContent = `${info.away} @ ${info.home}`;
+  }
+  if (metaEl) {
+    const bits = [];
+    if (info.date) bits.push(info.date);
+    if (info.tip) bits.push(`Tip: ${info.tip}`);
+    metaEl.textContent = bits.join(" • ");
+  }
+
+  if (statSelect) {
+    if (!statSelect.value) statSelect.value = "pts";
+    loadGameContext(info, statSelect.value || "pts");
+  } else {
+    loadGameContext(info, "pts");
+  }
+}
+
+function closeGameModal() {
+  const modal = document.getElementById("game-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+async function loadGameContext(gameInfo, stat) {
+  const edgesEl = document.getElementById("game-modal-edges");
+  const trendingEl = document.getElementById("game-modal-trending");
+  if (edgesEl) {
+    edgesEl.innerHTML = `<p class="muted">Loading edges...</p>`;
+  }
+  if (trendingEl) {
+    trendingEl.innerHTML = `<p class="muted">Loading trends...</p>`;
+  }
+
+  const home = gameInfo.home;
+  const away = gameInfo.away;
+
+  try {
+    const [edgesRes, trendingRes] = await Promise.all([
+      fetch(`/api/edges?stat=${encodeURIComponent(stat)}&limit=200`),
+      fetch(`/api/trending?stat=${encodeURIComponent(stat)}&limit=200`),
+    ]);
+
+    let edgesData = [];
+    if (edgesRes.ok) {
+      const edgesJson = await edgesRes.json();
+      edgesData = edgesJson.data || [];
+    }
+
+    let trendingData = [];
+    if (trendingRes.ok) {
+      const trendingJson = await trendingRes.json();
+      trendingData = trendingJson.data || [];
+    }
+
+    const teamsAllowed = new Set([home, away]);
+
+    const edgesFiltered = edgesData
+      .filter((p) => p.team && teamsAllowed.has(p.team))
+      .sort((a, b) => (b.delta || 0) - (a.delta || 0))
+      .slice(0, 6);
+
+    const trendingFiltered = trendingData
+      .filter((p) => p.team && teamsAllowed.has(p.team))
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, 6);
+
+    if (edgesEl) {
+      if (!edgesFiltered.length) {
+        edgesEl.innerHTML = `<p class="muted">No edges available for this matchup.</p>`;
+      } else {
+        const rows = edgesFiltered
+          .map((p) => {
+            const name = escapeHtml(p.name);
+            const team = escapeHtml(p.team || "");
+            const pos = escapeHtml(p.pos || "");
+            const delta = p.delta != null ? p.delta.toFixed(1) : "–";
+            const recent = p.recent != null ? p.recent.toFixed(1) : "–";
+            const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
+            const id =
+              p.player_id != null
+                ? String(p.player_id)
+                : p.id != null
+                ? String(p.id)
+                : "";
+
+            return `
+              <div class="overview-row"
+                   data-player-id="${id}"
+                   data-player-name="${name}"
+                   data-player-team="${team}"
+                   data-player-pos="${pos}">
+                <div class="overview-row-main">
+                  <span>${name}</span>
+                  <span class="muted">${team}${pos ? " • " + pos : ""}</span>
+                </div>
+                <div class="overview-row-meta">
+                  <div class="team-sub">Recent: ${recent} • Season: ${season}</div>
+                  <div class="badge-soft">Δ ${delta}</div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+        edgesEl.innerHTML = `<div class="modal-section-body">${rows}</div>`;
+      }
+    }
+
+    if (trendingEl) {
+      if (!trendingFiltered.length) {
+        trendingEl.innerHTML = `<p class="muted">No trending players for this matchup.</p>`;
+      } else {
+        const rows = trendingFiltered
+          .map((p) => {
+            const name = escapeHtml(p.name);
+            const team = escapeHtml(p.team || "");
+            const pos = escapeHtml(p.pos || "");
+            const score = p.score != null ? p.score.toFixed(1) : "–";
+            const id =
+              p.player_id != null
+                ? String(p.player_id)
+                : p.id != null
+                ? String(p.id)
+                : "";
+
+            return `
+              <div class="overview-row"
+                   data-player-id="${id}"
+                   data-player-name="${name}"
+                   data-player-team="${team}"
+                   data-player-pos="${pos}">
+                <div class="overview-row-main">
+                  <span>${name}</span>
+                  <span class="muted">${team}${pos ? " • " + pos : ""}</span>
+                </div>
+                <div class="overview-row-meta">
+                  <div>${score} ${stat.toUpperCase()}</div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+        trendingEl.innerHTML = `<div class="modal-section-body">${rows}</div>`;
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    if (edgesEl)
+      edgesEl.innerHTML = `<p class="muted">Error loading edges.</p>`;
+    if (trendingEl)
+      trendingEl.innerHTML = `<p class="muted">Error loading trends.</p>`;
+  }
+}
+
+/* ---------------- EDGE BOARD MODAL ---------------- */
+
+const edgeBoardState = {
+  byStat: {}, // stat -> raw rows
+  currentStat: "pts",
+  position: "",
+  team: "",
+};
+
+function setupEdgeBoardModal() {
+  const modal = document.getElementById("edge-modal");
+  if (!modal) return;
+
+  const closeBtn = document.getElementById("edge-modal-close");
+  const backdrop = modal.querySelector(".modal-backdrop");
+  const statSelect = document.getElementById("edge-modal-stat");
+  const posSelect = document.getElementById("edge-modal-position");
+  const teamSelect = document.getElementById("edge-modal-team");
+
+  if (closeBtn) closeBtn.addEventListener("click", closeEdgeBoardModal);
+  if (backdrop) backdrop.addEventListener("click", closeEdgeBoardModal);
+
+  if (statSelect) {
+    statSelect.addEventListener("change", () => {
+      edgeBoardState.currentStat = statSelect.value || "pts";
+      ensureEdgeBoardData(edgeBoardState.currentStat).then(() => {
+        renderEdgeBoardTable();
+      });
+    });
+  }
+
+  if (posSelect) {
+    posSelect.addEventListener("change", () => {
+      edgeBoardState.position = posSelect.value || "";
+      renderEdgeBoardTable();
+    });
+  }
+
+  if (teamSelect) {
+    teamSelect.addEventListener("change", () => {
+      edgeBoardState.team = teamSelect.value || "";
+      renderEdgeBoardTable();
+    });
+  }
+}
+
+function openEdgeBoardModal() {
+  const modal = document.getElementById("edge-modal");
+  const statSelect = document.getElementById("edge-modal-stat");
+  if (!modal) return;
+
+  modal.classList.remove("hidden");
+
+  const stat = statSelect?.value || edgeBoardState.currentStat || "pts";
+  edgeBoardState.currentStat = stat;
+  ensureEdgeBoardData(stat).then(() => {
+    renderEdgeBoardTable();
+  });
+}
+
+function closeEdgeBoardModal() {
+  const modal = document.getElementById("edge-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+async function ensureEdgeBoardData(stat) {
+  if (edgeBoardState.byStat[stat]) return;
+
+  const tbody = document.getElementById("edge-modal-rows");
+  if (tbody) {
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="muted">Loading edge board...</td></tr>';
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.set("stat", stat);
+    params.set("limit", "200");
+    const res = await fetch(`/api/edges?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to load edges");
+    const json = await res.json();
+    edgeBoardState.byStat[stat] = json.data || [];
+  } catch (err) {
+    console.error(err);
+    if (tbody) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" class="muted">Error loading edge board.</td></tr>';
+    }
+  }
+}
+
+function renderEdgeBoardTable() {
+  const stat = edgeBoardState.currentStat || "pts";
+  const raw = edgeBoardState.byStat[stat] || [];
+  const posFilter = (edgeBoardState.position || "").toUpperCase();
+  const teamFilter = edgeBoardState.team || "";
+
+  const tbody = document.getElementById("edge-modal-rows");
+  if (!tbody) return;
+
+  let rows = raw;
+
+  if (posFilter) {
+    rows = rows.filter((p) =>
+      (p.pos || "").toUpperCase().includes(posFilter)
+    );
+  }
+
+  if (teamFilter) {
+    rows = rows.filter((p) => p.team === teamFilter);
+  }
+
+  rows = rows.slice().sort((a, b) => (b.delta || 0) - (a.delta || 0));
+
+  const limited = rows.slice(0, 50);
+
+  if (!limited.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="muted">No edges match these filters.</td></tr>';
+    return;
+  }
+
+  const label = stat.toUpperCase();
+
+  const html = limited
+    .map((p) => {
+      const name = escapeHtml(p.name || "");
+      const team = escapeHtml(p.team || "");
+      const pos = escapeHtml(p.pos || "");
+      const recent = p.recent != null ? p.recent.toFixed(1) : "–";
+      const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
+      const delta = p.delta != null ? p.delta.toFixed(1) : "–";
+      const id =
+        p.player_id != null
+          ? String(p.player_id)
+          : p.id != null
+          ? String(p.id)
+          : "";
+
+      return `
+        <tr data-player-id="${id}"
+            data-player-name="${name}"
+            data-player-team="${team}"
+            data-player-pos="${pos}">
+          <td class="cell-left">${name}</td>
+          <td>${team}</td>
+          <td>${pos}</td>
+          <td>${label}</td>
+          <td>${recent}</td>
+          <td>${season}</td>
+          <td>${delta}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  tbody.innerHTML = html;
+}
+
+function populateEdgeBoardTeamsFilter() {
+  const teamSelect = document.getElementById("edge-modal-team");
+  if (!teamSelect) return;
+  if (!cachedTeams || !cachedTeams.length) return;
+
+  const opts = ['<option value="">All teams</option>'];
+  cachedTeams.forEach((t) => {
+    if (!t.team) return;
+    opts.push(
+      `<option value="${escapeHtml(t.team)}">${escapeHtml(t.team)}</option>`
+    );
+  });
+  teamSelect.innerHTML = opts.join("");
+}
+
+/* ---------------- UTIL ---------------- */
+
+function buildDate(range) {
+  const today = new Date();
+  const targetDate = new Date(
+    today.getTime() + (range === "tomorrow" ? 86400000 : 0)
+  );
+  const yyyy = targetDate.getUTCFullYear();
+  const mm = String(targetDate.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(targetDate.getUTCDate()).padStart(2, "0");
+  return { dateStr: `${yyyy}-${mm}-${dd}` };
+}
+
+function debounce(fn, delay) {
+  let id;
+  return (...args) => {
+    clearTimeout(id);
+    id = setTimeout(() => fn(...args), delay);
+  };
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
