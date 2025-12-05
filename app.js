@@ -2312,6 +2312,16 @@ function getTeamLogoUrl(teamAbbr) {
   return `/logos/${slug}.png`;
 }
 
+function getPropTierClass(deltaRaw) {
+  const d = Number(deltaRaw);
+  if (!Number.isFinite(d)) return "prop-pill-neutral";
+
+  // Adjust thresholds later if you want
+  if (d >= 4) return "prop-pill-green";   // strong edge
+  if (d >= 2) return "prop-pill-yellow";  // medium edge
+  return "prop-pill-red";                 // weak / fade
+}
+
 function buildDate(range) {
   const today = new Date();
   const targetDate = new Date(
