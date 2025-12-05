@@ -10,9 +10,6 @@
 //   /api/trending?stat=pts&last_n=5&min_games=3&limit=50
 //   /api/trending?team=LAL
 //   /api/trending?position=G
-//
-// Stat options (if present in player_stats.json):
-//   pts, reb, ast, stl, blk, fg3m
 
 export async function onRequest(context) {
   const { request } = context;
@@ -54,7 +51,7 @@ export async function onRequest(context) {
       );
     }
     const statsRaw = await statsRes.json();
-    const rowsRaw = Array.isArray(statsRaw) ? statsRaw : statsRaw.data || [];
+    const rowsRaw = extractRowsFromStatsPayload(statsRaw);
     const rows = rowsRaw.map(normalizeRow).filter((r) => !!r);
 
     // Load rosters for position + official team if present
@@ -136,7 +133,10 @@ export async function onRequest(context) {
   } catch (err) {
     console.error("api/trending error:", err);
 
-    return jsonResponse({ error: "Failed to compute trending players." }, { status: 500 });
+    return jsonResponse(
+      { error: "Failed to compute trending players." },
+      { status: 500 }
+    );
   }
 }
 
@@ -152,6 +152,18 @@ function clampInt(v, min, max) {
   const n = parseInt(v, 10);
   if (Number.isNaN(n)) return min;
   return Math.min(max, Math.max(min, n));
+}
+
+function extractRowsFromStatsPayload(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw.data)) return raw.data;
+  if (typeof raw === "object") {
+    for (const value of Object.values(raw)) {
+      if (Array.isArray(value)) return value;
+    }
+  }
+  return [];
 }
 
 function parseDateFromRow(row) {
