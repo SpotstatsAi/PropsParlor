@@ -327,6 +327,46 @@
     </main>
   </div>
 
+  <!-- Player detail modal -->
+  <div id="player-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <header class="modal-header">
+        <div class="modal-title-block">
+          <div class="modal-player-name" id="modal-player-name">Player</div>
+          <div class="modal-player-meta" id="modal-player-meta"></div>
+        </div>
+        <button id="modal-close" class="modal-close-btn" aria-label="Close">
+          ×
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="modal-summary" id="modal-summary">
+          Loading stats...
+        </div>
+        <div class="modal-table-wrapper">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th class="cell-left">Date</th>
+                <th class="cell-left">Opp</th>
+                <th>MIN</th>
+                <th>PTS</th>
+                <th>REB</th>
+                <th>AST</th>
+              </tr>
+            </thead>
+            <tbody id="modal-stats-rows">
+              <tr>
+                <td colspan="6" class="muted">Loading...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
