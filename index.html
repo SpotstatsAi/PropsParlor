@@ -1,219 +1,135 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>PropsParlor · Vegas Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PropsParlor | Player Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="app-shell">
-    <!-- Top bar -->
     <header class="top-bar">
       <div class="brand">
-        <span class="brand-pill">PP</span>
+        <div class="brand-mark">PP</div>
         <div class="brand-text">
-          <h1>PropsParlor</h1>
-          <p>NBA props, edges & game context</p>
+          <span class="brand-title">PropsParlor</span>
+          <span class="brand-subtitle">NBA Player Hub</span>
         </div>
       </div>
-
-      <div class="top-actions">
-        <div class="search-wrap">
-          <input
-            id="player-search"
-            type="text"
-            placeholder="Search players or teams…"
-          />
+      <div class="top-meta">
+        <div class="status-pill status-pill--idle">
+          <span class="dot"></span>
+          <span>No games scheduled context required</span>
         </div>
-        <button class="pill-button pill-primary" id="quick-edge-btn">
-          View Today’s Edge Board
-        </button>
+        <div class="meta-stat">
+          <span id="playerCount">0</span>
+          <label>Players</label>
+        </div>
       </div>
     </header>
 
-    <!-- Tab bar -->
-    <nav class="tab-bar">
-      <button class="tab active" data-tab="overview">Overview</button>
-      <button class="tab" data-tab="games">Games</button>
-      <button class="tab" data-tab="players">Players</button>
-      <button class="tab" data-tab="teams">Teams</button>
-      <button class="tab" data-tab="trends">Trends</button>
-    </nav>
+    <div class="layout">
+      <aside class="sidebar">
+        <section class="panel panel--filters">
+          <header class="panel-header">
+            <h2>Filters</h2>
+            <button id="resetFilters" class="ghost-btn">Reset</button>
+          </header>
 
-    <!-- MAIN CONTENT -->
-    <main class="main-layout">
-      <!-- ============ OVERVIEW ============ -->
-      <section id="tab-overview" class="tab-panel active">
-        <div class="grid-3">
-          <!-- Games Today card -->
-          <section class="card tall" id="games-today-card">
-            <header class="card-header">
-              <div>
-                <h2>Today’s Games</h2>
-                <p class="card-subtitle">Matchups & basic context</p>
-              </div>
-              <div class="card-header-actions">
-                <span class="badge" id="games-count-badge">0 games</span>
-              </div>
-            </header>
-            <div class="card-body scrollable" id="games-list">
-              <p class="muted">Loading games…</p>
+          <div class="field">
+            <label for="searchInput">Search</label>
+            <div class="field-input-wrapper">
+              <input
+                id="searchInput"
+                type="text"
+                placeholder="Player, team, jersey..."
+                autocomplete="off"
+              />
             </div>
-          </section>
-
-          <!-- Top Prop Targets -->
-          <section class="card tall">
-            <header class="card-header">
-              <div>
-                <h2>🎯 Top Prop Targets</h2>
-                <p class="card-subtitle">Statistically juicy spots</p>
-              </div>
-              <select id="prop-type-filter" class="dropdown">
-                <option value="all">All</option>
-                <option value="points">Points</option>
-                <option value="rebounds">Rebounds</option>
-                <option value="assists">Assists</option>
-                <option value="pra">PRA</option>
-                <option value="threes">3PM</option>
-              </select>
-            </header>
-            <div class="card-body scrollable" id="prop-targets">
-              <!-- JS fills in -->
-            </div>
-          </section>
-
-          <!-- Trending Players -->
-          <section class="card tall">
-            <header class="card-header">
-              <div>
-                <h2>🔥 Trending Players</h2>
-                <p class="card-subtitle">Running hot last few games</p>
-              </div>
-              <select id="trend-window" class="dropdown">
-                <option value="3">Last 3</option>
-                <option value="5" selected>Last 5</option>
-                <option value="10">Last 10</option>
-              </select>
-            </header>
-            <div class="card-body scrollable" id="trending-players">
-              <!-- JS fills in -->
-            </div>
-          </section>
-        </div>
-
-        <!-- Lower band: team & quick edges -->
-        <div class="grid-2 lower-band">
-          <section class="card">
-            <header class="card-header">
-              <div>
-                <h2>🧩 Team Rosters</h2>
-                <p class="card-subtitle">Snapshot by team</p>
-              </div>
-              <select id="team-filter" class="dropdown">
-                <option value="all">All teams</option>
-                <!-- JS injects specific teams -->
-              </select>
-            </header>
-            <div class="card-body scrollable" id="team-rosters">
-              <!-- JS fills in -->
-            </div>
-          </section>
-
-          <section class="card">
-            <header class="card-header">
-              <div>
-                <h2>📊 Edge Board</h2>
-                <p class="card-subtitle">Quick view of strongest leans</p>
-              </div>
-            </header>
-            <div class="card-body scrollable" id="edge-board">
-              <!-- JS fills in -->
-            </div>
-          </section>
-        </div>
-      </section>
-
-      <!-- ============ GAMES TAB ============ -->
-      <section id="tab-games" class="tab-panel">
-        <div class="tab-header-row">
-          <h2>Games Hub</h2>
-          <div class="tab-filters">
-            <button class="pill-button pill-secondary" id="games-today-btn">
-              Today
-            </button>
-            <button class="pill-button pill-secondary" id="games-tomorrow-btn">
-              Tomorrow
-            </button>
           </div>
-        </div>
-        <div id="games-hub-list" class="games-hub-list card-body scrollable">
-          <!-- JS: same data as overview but more detailed -->
-        </div>
-      </section>
 
-      <!-- ============ PLAYERS TAB ============ -->
-      <section id="tab-players" class="tab-panel">
-        <div class="tab-header-row">
-          <h2>Players Hub</h2>
-          <div class="tab-filters">
-            <select id="players-team-filter" class="dropdown"></select>
-            <select id="players-position-filter" class="dropdown">
-              <option value="all">All positions</option>
-              <option value="G">Guards</option>
-              <option value="F">Forwards</option>
-              <option value="C">Centers</option>
+          <div class="field-group">
+            <div class="field">
+              <label for="teamSelect">Team</label>
+              <select id="teamSelect">
+                <option value="">All teams</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="positionSelect">Position</label>
+              <select id="positionSelect">
+                <option value="">All positions</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="sortSelect">Sort</label>
+            <select id="sortSelect">
+              <option value="name-asc">Name A → Z</option>
+              <option value="team">Team, then name</option>
+              <option value="height-desc">Height (tallest)</option>
+              <option value="weight-desc">Weight (heaviest)</option>
+              <option value="jersey-asc">Jersey #</option>
             </select>
           </div>
-        </div>
-        <div id="players-grid" class="players-grid">
-          <!-- JS renders cards -->
-        </div>
-      </section>
 
-      <!-- ============ TEAMS TAB ============ -->
-      <section id="tab-teams" class="tab-panel">
-        <div class="tab-header-row">
-          <h2>Teams Hub</h2>
-        </div>
-        <div id="teams-grid" class="teams-grid">
-          <!-- JS renders team cards -->
-        </div>
-      </section>
+          <div class="filter-chips" id="activeFilters"></div>
+        </section>
 
-      <!-- ============ TRENDS TAB ============ -->
-      <section id="tab-trends" class="tab-panel">
-        <div class="tab-header-row">
-          <h2>Trends & Signals</h2>
-        </div>
-        <div class="grid-2">
-          <section class="card">
-            <header class="card-header">
-              <h3>Player Trend Heatmap (placeholder)</h3>
-            </header>
-            <div class="card-body">
-              <p class="muted">
-                This area is reserved for advanced visualizations (heatmaps,
-                rolling averages, matchup ratings). Hook into your JSON or BDL
-                when ready.
-              </p>
+        <section class="panel panel--summary">
+          <header class="panel-header">
+            <h2>Snapshot</h2>
+          </header>
+          <div class="summary-list">
+            <div class="summary-row">
+              <span>Unique teams</span>
+              <span id="teamCount">0</span>
             </div>
-          </section>
-          <section class="card">
-            <header class="card-header">
-              <h3>Team & Pace Signals (placeholder)</h3>
-            </header>
-            <div class="card-body">
-              <p class="muted">
-                Use this panel for pace, defensive ratings, and matchup edges.
-              </p>
+            <div class="summary-row">
+              <span>Guards</span>
+              <span id="guardCount">0</span>
             </div>
-          </section>
-        </div>
-      </section>
-    </main>
+            <div class="summary-row">
+              <span>Wings / Forwards</span>
+              <span id="forwardCount">0</span>
+            </div>
+            <div class="summary-row">
+              <span>Bigs / Centers</span>
+              <span id="centerCount">0</span>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <main class="main">
+        <section class="panel panel--players">
+          <header class="panel-header">
+            <h2>Players</h2>
+            <span class="panel-subtitle" id="resultSummary">Loading players…</span>
+          </header>
+
+          <div id="playersGrid" class="players-grid"></div>
+
+          <div id="emptyState" class="empty-state hidden">
+            <div class="empty-pill">No players match your filters.</div>
+            <p>Adjust search, team, or position filters to see more players.</p>
+            <button class="primary-btn" id="clearFiltersFromEmpty">
+              Clear filters
+            </button>
+          </div>
+
+          <div id="errorState" class="empty-state empty-state--error hidden">
+            <div class="empty-pill empty-pill--error">Error loading players.</div>
+            <p>Ensure <code>rosters.json</code> is being built by BallDontLie workflows.</p>
+          </div>
+        </section>
+      </main>
+    </div>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
