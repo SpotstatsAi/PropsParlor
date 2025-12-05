@@ -1057,7 +1057,7 @@ async function loadOverviewEdgeBoard() {
   }
 }
 
-/* ---------------- PLAYER MODAL ---------------- */
+/* ---------------- PLAYER MODAL (basic) ---------------- */
 
 function setupPlayerModal() {
   const modal = document.getElementById("player-modal");
@@ -1073,6 +1073,7 @@ function setupPlayerModal() {
     const target = evt.target.closest("[data-player-id]");
     if (!target) return;
 
+    // If click originated from detail modal or edge table we still want modal; it's global.
     const id = target.dataset.playerId || "";
     const name = target.dataset.playerName || "";
     const team = target.dataset.playerTeam || "";
@@ -1114,10 +1115,9 @@ function openPlayerModal(player) {
 
   if (detailBtn) {
     detailBtn.onclick = () => {
-      closePlayerModal();
-      // Use hash routing so deep link works
       if (player.id) {
-        window.location.hash = `#player-${player.id}`;
+        closePlayerModal();
+        openPlayerDetail(player.id); // pop up detail modal
       }
     };
   }
@@ -1573,7 +1573,7 @@ function populateEdgeBoardTeamsFilter() {
   teamSelect.innerHTML = opts.join("");
 }
 
-/* ---------------- PLAYER DETAIL VIEW ---------------- */
+/* ---------------- PLAYER DETAIL MODAL (season + props) ---------------- */
 
 const PlayerDetailState = {
   playersById: new Map(),
@@ -1632,23 +1632,13 @@ function pdFmt(val) {
 }
 
 function pdShowPlayerDetailView() {
-  const views = document.querySelectorAll(".view");
-  views.forEach((v) => v.classList.remove("active"));
-  const view = document.getElementById("player-detail-view");
-  if (view) view.classList.add("active");
+  const modal = document.getElementById("player-detail-modal");
+  if (modal) modal.classList.remove("hidden");
 }
 
 function pdHidePlayerDetailView() {
-  const view = document.getElementById("player-detail-view");
-  if (view) view.classList.remove("active");
-  // Default back to Players view if it exists; otherwise Overview
-  const playersView = document.getElementById("players-view");
-  const overviewView = document.getElementById("overview-view");
-  if (playersView) {
-    playersView.classList.add("active");
-  } else if (overviewView) {
-    overviewView.classList.add("active");
-  }
+  const modal = document.getElementById("player-detail-modal");
+  if (modal) modal.classList.add("hidden");
 }
 
 function pdSetLoading(isLoading, errorMsg) {
@@ -1994,11 +1984,7 @@ function pdRenderPropPreview(rosterPlayer, playerId, edgesByStat) {
       row.innerHTML = `
         <div>${escapeHtml(book)}</div>
         <div>${line !== "" ? escapeHtml(line) : "–"}</div>
-        <div>${
-          recent != null
-            ? pdFmt(recent)
-            : "–"
-        }</div>
+        <div>${recent != null ? pdFmt(recent) : "–"}</div>
         <div>${delta != null ? pdFmt(delta) : "–"}</div>
       `;
       group.appendChild(row);
@@ -2013,11 +1999,14 @@ function pdRenderPropPreview(rosterPlayer, playerId, edgesByStat) {
 }
 
 function setupPlayerDetailRouting() {
-  const backBtn = document.getElementById("player-detail-back");
-  if (backBtn) {
-    backBtn.addEventListener("click", () => {
-      // Clear hash and go back to main tab view
-      history.replaceState(null, "", window.location.pathname + window.location.search);
+  const closeBtn = document.getElementById("player-detail-close");
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search
+      );
       pdHidePlayerDetailView();
     });
   }
@@ -2030,11 +2019,7 @@ function setupPlayerDetailRouting() {
         openPlayerDetail(id);
       }
     } else {
-      // Leaving player detail hash; hide detail view if it was active
-      const detailView = document.getElementById("player-detail-view");
-      if (detailView && detailView.classList.contains("active")) {
-        pdHidePlayerDetailView();
-      }
+      pdHidePlayerDetailView();
     }
   }
 
