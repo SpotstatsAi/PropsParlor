@@ -440,6 +440,19 @@ function renderPlayerCard(p) {
   `;
 }
 
+function attachPlayerCardHandlers() {
+  const cards = document.querySelectorAll(".player-card");
+  cards.forEach((card) => {
+    card.addEventListener("click", () => {
+      const id = card.dataset.playerId || "";
+      if (!id) return;
+      const name = card.dataset.playerName || "";
+      const team = card.dataset.playerTeam || "";
+      const pos = card.dataset.playerPos || "";
+      openPlayerModal({ id, name, team, pos });
+    });
+  });
+}
 
 function renderPlayerCard(p) {
   const name = escapeHtml(p.name || "");
