@@ -210,7 +210,7 @@ body {
   border-radius: 999px;
   background: rgba(9, 10, 20, 0.9);
   border: 1px solid var(--border-subtle);
-  max-width: 520px;
+  max-width: 620px;
 }
 
 .nav-tab {
@@ -335,11 +335,6 @@ body {
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast),
     border-color var(--transition-fast);
-}
-
-.chip-toggle.small {
-  padding: 2px 8px;
-  font-size: 10px;
 }
 
 .chip-toggle.active {
@@ -554,7 +549,7 @@ body {
 }
 
 .badge-soft {
-  border-radius: var(--radius-pill);
+  border-radius: 999px;
   padding: 2px 8px;
   font-size: 10px;
   background: rgba(255, 255, 255, 0.05);
@@ -583,6 +578,12 @@ body {
   font-size: 10px;
   padding: 4px 10px;
   cursor: pointer;
+}
+
+.tiny-btn.active {
+  background: var(--accent-soft);
+  color: #ffe6c3;
+  border-color: rgba(255, 183, 77, 0.7);
 }
 
 .muted {
@@ -618,7 +619,7 @@ body {
 
 .modal-panel {
   position: relative;
-  max-width: 720px;
+  max-width: 840px;
   width: 90%;
   max-height: 80vh;
   background: radial-gradient(circle at top left, #2d315a, #101221);
@@ -630,13 +631,9 @@ body {
   flex-direction: column;
 }
 
-.modal-panel-lg {
-  max-width: 980px;
-}
-
 .modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   padding: 12px 16px 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -676,10 +673,6 @@ body {
 .modal-summary {
   font-size: 11px;
   color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .modal-table-wrapper {
@@ -689,6 +682,12 @@ body {
   padding: 6px 8px;
   overflow: auto;
   max-height: 52vh;
+}
+
+.modal-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 
 /* Stats table */
@@ -727,238 +726,194 @@ body {
   text-align: left;
 }
 
-/* Modal sections for game modal */
+/* Game / Edge modal sections */
 
-.modal-sections-grid {
+.modal-section-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .modal-section {
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 6px 8px;
-  max-height: 45vh;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .modal-section-title {
-  margin: 0 0 4px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .modal-section-body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-/* PLAYER DETAIL MODAL VIEW */
-
-.player-detail-header {
-  align-items: flex-start;
-}
-
-.player-detail-header-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.player-detail-name {
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-}
-
-.player-detail-meta {
   font-size: 12px;
-  color: var(--text-soft);
 }
 
-.player-detail-meta span + span::before {
-  content: "•";
-  margin: 0 6px;
-  opacity: 0.7;
-}
-
-.player-detail-tags {
-  margin-top: 4px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.player-detail-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.1fr);
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.player-detail-column {
-  min-width: 0;
-}
-
-.card-block {
-  background: radial-gradient(circle at top left, #32385c, #191b32);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 10px 12px;
-  margin-bottom: 10px;
-}
-
-.card-block-header {
+.modal-section-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  gap: 8px;
 }
 
-.card-block-title {
-  margin: 0;
-  font-size: 13px;
-  letter-spacing: 0.03em;
+/* Player Detail */
+
+.inline-status {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
-/* Player detail stat rows */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.tag-secondary {
+  border-color: rgba(255, 183, 77, 0.5);
+  background: rgba(255, 183, 77, 0.1);
+  color: #ffe6c3;
+}
+
+.pd-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.pd-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.pd-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pd-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pd-section-title {
+  font-size: 12px;
+  font-weight: 500;
+}
 
 .pd-stat-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 11px;
   padding: 4px 0;
-  font-size: 12px;
 }
 
 .pd-stat-label {
-  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .pd-stat-values {
   display: flex;
   gap: 10px;
-  font-size: 11px;
+  align-items: center;
 }
 
-/* Gamelog rows */
+.pd-gamelog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
 
 .pd-gamelog-row {
   display: grid;
-  grid-template-columns: 70px 1fr auto;
-  gap: 4px;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  font-size: 11px;
-}
-
-.pd-gamelog-row:last-child {
-  border-bottom: none;
+  grid-template-columns: 70px minmax(0, 1fr) 110px;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .pd-gamelog-date {
-  opacity: 0.75;
-}
-
-.pd-gamelog-opp {
-  font-size: 12px;
-}
-
-.pd-gamelog-line {
   font-size: 11px;
   color: var(--text-soft);
 }
 
+.pd-gamelog-opp {
+  font-size: 11px;
+}
+
+.pd-gamelog-line {
+  font-size: 10px;
+  color: var(--text-soft);
+}
+
 .pd-gamelog-statline {
-  font-size: 12px;
+  font-size: 11px;
   text-align: right;
 }
 
-/* Prop preview */
+.pd-section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.pd-props-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pd-prop-stat-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.pd-props-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+}
 
 .pd-prop-group {
-  margin-bottom: 8px;
   border-radius: 10px;
-  padding: 6px 7px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  background: rgba(12, 14, 28, 0.96);
-  font-size: 11px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .pd-prop-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 11px;
   color: var(--text-soft);
 }
 
 .pd-prop-row {
   display: grid;
-  grid-template-columns: 1.1fr 0.7fr 0.7fr 0.7fr;
+  grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr;
   gap: 4px;
   font-size: 11px;
-  padding: 3px 0;
-}
-
-/* Prop controls */
-
-.pd-props-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.pd-props-stat-toggle {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.pd-props-book-filter {
-  padding: 3px 8px;
-  font-size: 10px;
-}
-
-/* Scroll helpers for detail view */
-
-.pd-scroll {
-  max-height: 230px;
-  overflow-y: auto;
-}
-
-/* Tag + inline status */
-
-.tag {
-  border-radius: var(--radius-pill);
-  padding: 2px 8px;
-  font-size: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.tag-secondary {
-  background: rgba(0, 0, 0, 0.6);
-  color: var(--text-soft);
-}
-
-.inline-status {
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--text-soft);
-}
-
-.inline-status.error {
-  color: #ff4f6a;
 }
 
 /* Responsive */
@@ -973,7 +928,10 @@ body {
   .players-layout {
     grid-template-columns: minmax(0, 1fr);
   }
-  .player-detail-grid {
+  .pd-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .modal-section-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -988,8 +946,5 @@ body {
   }
   .app-nav {
     width: 100%;
-  }
-  .modal-sections-grid {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
