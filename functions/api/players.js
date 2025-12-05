@@ -1,4 +1,4 @@
-// functions/api/players.js
+// functions/api/players.js 
 export async function onRequest(context) {
   const { request } = context;
 
