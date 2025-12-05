@@ -776,3 +776,78 @@ body {
     width: 100%;
   }
 }
+/* Make modal scrollable inside viewport */
+.modal-panel {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Player modal mini charts */
+
+.player-modal-charts {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.player-modal-charts-title {
+  font-size: 11px;
+  color: var(--text-soft);
+  margin-bottom: 4px;
+}
+
+.player-modal-chart-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.player-modal-chart-label {
+  width: 30px;
+  font-size: 10px;
+  color: var(--text-soft);
+}
+
+.player-modal-chart-canvas {
+  flex: 1;
+  height: 52px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* Prop / edge likelihood pills */
+
+.prop-pill {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.prop-pill-green {
+  background: rgba(34, 197, 94, 0.18);
+  border-color: rgba(34, 197, 94, 0.7);
+  color: #bbf7d0;
+}
+
+.prop-pill-yellow {
+  background: rgba(250, 204, 21, 0.2);
+  border-color: rgba(250, 204, 21, 0.75);
+  color: #fef9c3;
+}
+
+.prop-pill-red {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.75);
+  color: #fecaca;
+}
+
+.prop-pill-neutral {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.6);
+  color: #e5e7eb;
+}
