@@ -366,6 +366,97 @@
     </div>
   </div>
 
+  <!-- Game matchup modal -->
+  <div id="game-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel game-modal-panel">
+      <header class="modal-header">
+        <div class="modal-title-block">
+          <div class="modal-player-name" id="game-modal-title">Matchup</div>
+          <div class="modal-player-meta" id="game-modal-meta"></div>
+        </div>
+        <div class="modal-header-controls">
+          <select id="game-modal-stat" class="panel-select small-select">
+            <option value="pts">Points</option>
+            <option value="reb">Rebounds</option>
+            <option value="ast">Assists</option>
+          </select>
+          <button id="game-modal-close" class="modal-close-btn" aria-label="Close">
+            ×
+          </button>
+        </div>
+      </header>
+      <div class="modal-body game-modal-body">
+        <div class="game-modal-column">
+          <div class="modal-section-title">Top prop targets in this game</div>
+          <div id="game-modal-edges" class="modal-section-body">
+            <p class="muted">Loading edges...</p>
+          </div>
+        </div>
+        <div class="game-modal-column">
+          <div class="modal-section-title">Trending players in this game</div>
+          <div id="game-modal-trending" class="modal-section-body">
+            <p class="muted">Loading trends...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edge Board detail modal -->
+  <div id="edge-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel edge-modal-panel">
+      <header class="modal-header">
+        <div class="modal-title-block">
+          <div class="modal-player-name">Edge Board</div>
+          <div class="modal-player-meta">Full board • strongest prop edges</div>
+        </div>
+        <div class="modal-header-controls">
+          <select id="edge-modal-stat" class="panel-select small-select">
+            <option value="pts">Points</option>
+            <option value="reb">Rebounds</option>
+            <option value="ast">Assists</option>
+          </select>
+          <select id="edge-modal-position" class="panel-select small-select">
+            <option value="">All positions</option>
+            <option value="G">Guards</option>
+            <option value="F">Wings / Forwards</option>
+            <option value="C">Bigs / Centers</option>
+          </select>
+          <select id="edge-modal-team" class="panel-select small-select">
+            <option value="">All teams</option>
+          </select>
+          <button id="edge-modal-close" class="modal-close-btn" aria-label="Close">
+            ×
+          </button>
+        </div>
+      </header>
+      <div class="modal-body">
+        <div class="modal-table-wrapper">
+          <table class="stats-table edge-table">
+            <thead>
+              <tr>
+                <th class="cell-left">Player</th>
+                <th>Team</th>
+                <th>Pos</th>
+                <th>Stat</th>
+                <th>Recent</th>
+                <th>Season</th>
+                <th>Δ Edge</th>
+              </tr>
+            </thead>
+            <tbody id="edge-modal-rows">
+              <tr>
+                <td colspan="7" class="muted">Loading edge board...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
