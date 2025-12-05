@@ -10,8 +10,8 @@
 //   /api/stats?player_id=237&last_n=10&sort=date-desc
 //
 // Notes:
-// - Assumes player_stats.json is an array of game-level stat rows.
-// - Tries multiple common field names for ids, team abbreviations, and dates.
+// - Assumes player_stats.json contains an array somewhere; we try to
+//   detect it via extractRowsFromStatsPayload.
 
 export async function onRequest(context) {
   const { request } = context;
@@ -47,7 +47,7 @@ export async function onRequest(context) {
     }
 
     const raw = await statsRes.json();
-    const rowsRaw = Array.isArray(raw) ? raw : raw.data || [];
+    const rowsRaw = extractRowsFromStatsPayload(raw);
     const rows = rowsRaw.map(normalizeRow).filter((r) => !!r);
 
     let filtered = applyFilters(rows, filters);
@@ -88,6 +88,24 @@ function jsonResponse(body, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set("content-type", "application/json; charset=utf-8");
   return new Response(JSON.stringify(body, null, 2), { ...options, headers });
+}
+
+// Try to find the actual array of stat rows inside an arbitrary JSON payload.
+function extractRowsFromStatsPayload(raw) {
+  if (!raw) return [];
+
+  if (Array.isArray(raw)) return raw;
+
+  if (Array.isArray(raw.data)) return raw.data;
+
+  // Fallback: first array-valued property.
+  if (typeof raw === "object") {
+    for (const value of Object.values(raw)) {
+      if (Array.isArray(value)) return value;
+    }
+  }
+
+  return [];
 }
 
 function parseDateFromRow(row) {
@@ -145,16 +163,13 @@ function normalizeRow(raw) {
   };
 
   return {
-    // identifiers
     playerId: playerId != null ? String(playerId) : null,
     name,
     firstName,
     lastName,
     team: teamAbbr ? String(teamAbbr).toUpperCase() : "",
     gameDate,
-    // raw row for downstream uses
     raw,
-    // extracted stats
     stats,
   };
 }
