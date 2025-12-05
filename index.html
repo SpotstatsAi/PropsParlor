@@ -25,6 +25,8 @@
             type="search"
             placeholder="Search players or teams..."
           />
+          <!-- Global search dropdown (used by setupGlobalSearch) -->
+          <div id="global-search-results" class="search-results hidden"></div>
         </div>
       </div>
 
@@ -325,6 +327,137 @@
         </article>
       </section>
     </main>
+  </div>
+
+  <!-- PLAYER MODAL (used by setupPlayerModal / openPlayerModal) -->
+  <div id="player-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <header class="modal-header">
+        <div class="modal-title-block">
+          <div id="modal-player-name" class="modal-player-name"></div>
+          <div id="modal-player-meta" class="modal-player-meta"></div>
+        </div>
+        <button id="modal-close" class="modal-close-btn" aria-label="Close">
+          &times;
+        </button>
+      </header>
+      <div class="modal-body">
+        <div id="modal-summary" class="modal-summary"></div>
+        <div class="modal-table-wrapper">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th class="cell-left">Date</th>
+                <th class="cell-left">Opp</th>
+                <th>Min</th>
+                <th>PTS</th>
+                <th>REB</th>
+                <th>AST</th>
+              </tr>
+            </thead>
+            <tbody id="modal-stats-rows">
+              <!-- filled by loadPlayerStats -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME MODAL (used by setupGameModal / openGameModal) -->
+  <div id="game-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <header class="modal-header">
+        <div class="modal-title-block">
+          <div id="game-modal-title" class="modal-player-name"></div>
+          <div id="game-modal-meta" class="modal-player-meta"></div>
+        </div>
+        <button id="game-modal-close" class="modal-close-btn" aria-label="Close">
+          &times;
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="modal-summary">
+          <span>Stat focus: </span>
+          <select id="game-modal-stat" class="panel-select">
+            <option value="pts">Points</option>
+            <option value="reb">Rebounds</option>
+            <option value="ast">Assists</option>
+          </select>
+        </div>
+        <div class="modal-sections-grid">
+          <section class="modal-section">
+            <h3 class="modal-section-title">Edges</h3>
+            <div id="game-modal-edges" class="modal-section-body">
+              <!-- filled by loadGameContext -->
+            </div>
+          </section>
+          <section class="modal-section">
+            <h3 class="modal-section-title">Trending</h3>
+            <div id="game-modal-trending" class="modal-section-body">
+              <!-- filled by loadGameContext -->
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDGE BOARD MODAL (used by setupEdgeBoardModal / openEdgeBoardModal) -->
+  <div id="edge-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <header class="modal-header">
+        <div class="modal-title-block">
+          <div class="modal-player-name">Edge Board</div>
+          <div class="modal-player-meta">Filtered prop edges across books</div>
+        </div>
+        <button id="edge-modal-close" class="modal-close-btn" aria-label="Close">
+          &times;
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="modal-summary">
+          <span>Stat: </span>
+          <select id="edge-modal-stat" class="panel-select">
+            <option value="pts">Points</option>
+            <option value="reb">Rebounds</option>
+            <option value="ast">Assists</option>
+          </select>
+          <span style="margin-left:8px;">Pos: </span>
+          <select id="edge-modal-position" class="panel-select">
+            <option value="">All</option>
+            <option value="G">G</option>
+            <option value="F">F</option>
+            <option value="C">C</option>
+          </select>
+          <span style="margin-left:8px;">Team: </span>
+          <select id="edge-modal-team" class="panel-select">
+            <option value="">All teams</option>
+          </select>
+        </div>
+        <div class="modal-table-wrapper">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th class="cell-left">Player</th>
+                <th>Team</th>
+                <th>Pos</th>
+                <th>Stat</th>
+                <th>Recent</th>
+                <th>Season</th>
+                <th>Δ</th>
+              </tr>
+            </thead>
+            <tbody id="edge-modal-rows">
+              <!-- filled by renderEdgeBoardTable -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>
