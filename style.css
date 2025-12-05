@@ -625,6 +625,10 @@ body {
   flex-direction: column;
 }
 
+.modal-panel-lg {
+  max-width: 980px;
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -749,13 +753,10 @@ body {
   gap: 4px;
 }
 
-/* PLAYER DETAIL VIEW */
+/* PLAYER DETAIL MODAL VIEW */
 
 .player-detail-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 0 12px;
+  align-items: flex-start;
 }
 
 .player-detail-header-main {
