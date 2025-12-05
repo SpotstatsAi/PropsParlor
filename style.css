@@ -337,6 +337,11 @@ body {
     border-color var(--transition-fast);
 }
 
+.chip-toggle.small {
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
 .chip-toggle.active {
   background: var(--accent-soft);
   color: #ffe6c3;
@@ -549,7 +554,7 @@ body {
 }
 
 .badge-soft {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 2px 8px;
   font-size: 10px;
   background: rgba(255, 255, 255, 0.05);
@@ -902,6 +907,27 @@ body {
   gap: 4px;
   font-size: 11px;
   padding: 3px 0;
+}
+
+/* Prop controls */
+
+.pd-props-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.pd-props-stat-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pd-props-book-filter {
+  padding: 3px 8px;
+  font-size: 10px;
 }
 
 /* Scroll helpers for detail view */
