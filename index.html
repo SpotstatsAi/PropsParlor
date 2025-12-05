@@ -1,158 +1,328 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>PropsParlor | Vegas Player Board</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="app-shell">
+    <!-- Top bar -->
     <header class="app-header">
-      <div class="app-header-main">
-        <div class="brand">
-          <div class="brand-mark">PP</div>
-          <div class="brand-text">
-            <span class="brand-title">PropsParlor</span>
-            <span class="brand-subtitle">NBA props, edges &amp; game context</span>
-          </div>
+      <div class="brand">
+        <div class="brand-badge">PP</div>
+        <div class="brand-meta">
+          <div class="brand-title">PropsParlor</div>
+          <div class="brand-subtitle">NBA props, edges &amp; game context</div>
         </div>
-
-        <div class="header-search">
-          <input
-            id="globalSearch"
-            type="text"
-            placeholder="Search players or teams..."
-            autocomplete="off"
-          />
-        </div>
-
-        <button class="header-cta">
-          View Today&apos;s Edge Board
-        </button>
       </div>
 
-      <nav class="app-tabs">
-        <button class="tab">Overview</button>
-        <button class="tab">Games</button>
-        <button class="tab tab--active">Players</button>
-        <button class="tab">Teams</button>
-        <button class="tab">Trends</button>
-      </nav>
+      <div class="header-center">
+        <div class="search-shell">
+          <input
+            id="global-search"
+            type="search"
+            placeholder="Search players or teams..."
+          />
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="edge-board-btn" class="primary-cta">
+          View Today's Edge Board
+        </button>
+      </div>
     </header>
 
-    <main class="main-shell">
-      <section class="primary-row">
-        <aside class="sidebar">
-          <section class="panel panel--filters">
+    <!-- Nav tabs -->
+    <nav class="app-nav">
+      <button class="nav-tab active" data-view="overview-view">Overview</button>
+      <button class="nav-tab" data-view="games-view">Games</button>
+      <button class="nav-tab" data-view="players-view">Players</button>
+      <button class="nav-tab" data-view="teams-view">Teams</button>
+      <button class="nav-tab" data-view="trends-view">Trends</button>
+    </nav>
+
+    <!-- Main content -->
+    <main class="app-main">
+      <!-- OVERVIEW -->
+      <section id="overview-view" class="view active">
+        <div class="overview-grid">
+          <!-- Today's Games -->
+          <article class="panel">
             <header class="panel-header">
-              <h2>Filters</h2>
-              <button id="resetFilters" class="ghost-btn">Reset</button>
+              <div>
+                <h2 class="panel-title">Today's Games</h2>
+                <p class="panel-subtitle">Matchups &amp; basic context</p>
+              </div>
+              <span class="chip" id="overview-games-count">0 games</span>
             </header>
-
-            <div class="field">
-              <label for="searchInput">Search</label>
-              <div class="field-input-wrapper">
-                <input
-                  id="searchInput"
-                  type="text"
-                  placeholder="Player, team, jersey..."
-                  autocomplete="off"
-                />
-              </div>
+            <div class="panel-body" id="overview-games">
+              <p class="muted">Loading games...</p>
             </div>
+          </article>
 
-            <div class="field-group">
-              <div class="field">
-                <label for="teamSelect">Team</label>
-                <select id="teamSelect">
-                  <option value="">All teams</option>
-                </select>
+          <!-- Top Prop Targets (Edges) -->
+          <article class="panel">
+            <header class="panel-header">
+              <div>
+                <h2 class="panel-title">Top Prop Targets</h2>
+                <p class="panel-subtitle">Statistically juicy spots</p>
               </div>
-
-              <div class="field">
-                <label for="positionSelect">Position</label>
-                <select id="positionSelect">
-                  <option value="">All positions</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="field">
-              <label for="sortSelect">Sort</label>
-              <select id="sortSelect">
-                <option value="name-asc">Name A → Z</option>
-                <option value="team">Team, then name</option>
-                <option value="height-desc">Height (tallest)</option>
-                <option value="weight-desc">Weight (heaviest)</option>
-                <option value="jersey-asc">Jersey #</option>
+              <select id="overview-edges-stat" class="panel-select">
+                <option value="pts">Points</option>
+                <option value="reb">Rebounds</option>
+                <option value="ast">Assists</option>
               </select>
-            </div>
-
-            <div class="filter-chips" id="activeFilters"></div>
-          </section>
-
-          <section class="panel panel--summary">
-            <header class="panel-header">
-              <h2>Snapshot</h2>
             </header>
-            <div class="summary-list">
-              <div class="summary-row">
-                <span>Unique teams</span>
-                <span id="teamCount">0</span>
-              </div>
-              <div class="summary-row">
-                <span>Guards</span>
-                <span id="guardCount">0</span>
-              </div>
-              <div class="summary-row">
-                <span>Wings / Forwards</span>
-                <span id="forwardCount">0</span>
-              </div>
-              <div class="summary-row">
-                <span>Bigs / Centers</span>
-                <span id="centerCount">0</span>
-              </div>
+            <div class="panel-body" id="overview-edges">
+              <p class="muted">Loading edge candidates...</p>
             </div>
-          </section>
-        </aside>
+          </article>
 
-        <section class="panel panel--players">
-          <header class="panel-header panel-header--players">
-            <div class="panel-title-block">
-              <h2>Player Board</h2>
-              <span class="panel-subtitle" id="resultSummary">
-                Loading players…
-              </span>
+          <!-- Trending Players -->
+          <article class="panel">
+            <header class="panel-header">
+              <div>
+                <h2 class="panel-title">🔥 Trending Players</h2>
+                <p class="panel-subtitle">Running hot last few games</p>
+              </div>
+              <select id="overview-trending-stat" class="panel-select">
+                <option value="pts">Points</option>
+                <option value="reb">Rebounds</option>
+                <option value="ast">Assists</option>
+                <option value="usage">Usage</option>
+              </select>
+            </header>
+            <div class="panel-body" id="overview-trending">
+              <p class="muted">Loading trending players...</p>
             </div>
-            <div class="panel-meta">
-              <div class="status-pill status-pill--idle">
-                <span class="dot"></span>
-                <span>Always on • No schedule required</span>
+          </article>
+
+          <!-- Team Rosters snapshot -->
+          <article class="panel span-2">
+            <header class="panel-header">
+              <div>
+                <h2 class="panel-title">Team Rosters</h2>
+                <p class="panel-subtitle">Snapshot by team</p>
               </div>
-              <div class="meta-stat">
-                <span id="playerCount">0</span>
-                <label>Players</label>
+              <select id="overview-teams-filter" class="panel-select">
+                <option value="">All teams</option>
+              </select>
+            </header>
+            <div class="panel-body" id="overview-teams">
+              <p class="muted">Loading team overview...</p>
+            </div>
+          </article>
+
+          <!-- Edge Board summary -->
+          <article class="panel">
+            <header class="panel-header">
+              <div>
+                <h2 class="panel-title">📊 Edge Board</h2>
+                <p class="panel-subtitle">Quick view of strongest leans</p>
               </div>
+            </header>
+            <div class="panel-body" id="overview-edgeboard">
+              <p class="muted">
+                Use this panel to summarize your strongest props across stats.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- GAMES -->
+      <section id="games-view" class="view">
+        <article class="panel span-2">
+          <header class="panel-header">
+            <div>
+              <h2 class="panel-title">Games Hub</h2>
+              <p class="panel-subtitle">Schedule-backed + live context</p>
+            </div>
+            <div class="panel-actions">
+              <button class="chip-toggle active" data-games-range="today">
+                Today
+              </button>
+              <button class="chip-toggle" data-games-range="tomorrow">
+                Tomorrow
+              </button>
             </div>
           </header>
-
-          <div id="playersGrid" class="players-grid"></div>
-
-          <div id="emptyState" class="empty-state hidden">
-            <div class="empty-pill">No players match your filters.</div>
-            <p>Adjust search, team, or position filters to see more players.</p>
-            <button class="primary-btn" id="clearFiltersFromEmpty">
-              Clear filters
-            </button>
+          <div class="panel-body" id="games-list">
+            <p class="muted">Loading games...</p>
           </div>
+        </article>
+      </section>
 
-          <div id="errorState" class="empty-state empty-state--error hidden">
-            <div class="empty-pill empty-pill--error">Error loading players.</div>
-            <p>Check <code>rosters.json</code> and the <code>/api/players</code> function.</p>
+      <!-- PLAYERS -->
+      <section id="players-view" class="view">
+        <div class="players-layout">
+          <!-- Filters column -->
+          <aside class="filters-column">
+            <div class="panel filters-panel">
+              <header class="panel-header">
+                <h2 class="panel-title">Filters</h2>
+                <button id="filters-reset" class="tiny-btn">Reset</button>
+              </header>
+
+              <div class="filters-group">
+                <label class="filter-label">Search</label>
+                <div class="filter-control">
+                  <input
+                    id="player-search"
+                    type="search"
+                    placeholder="Player, team, jersey..."
+                  />
+                </div>
+              </div>
+
+              <div class="filters-row">
+                <div class="filters-group">
+                  <label class="filter-label">Team</label>
+                  <div class="filter-control">
+                    <select id="filter-team">
+                      <option value="">All teams</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="filters-group">
+                  <label class="filter-label">Position</label>
+                  <div class="filter-control">
+                    <select id="filter-position">
+                      <option value="">All positions</option>
+                      <option value="G">Guards</option>
+                      <option value="F">Wings / Forwards</option>
+                      <option value="C">Bigs / Centers</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="filters-group">
+                <label class="filter-label">Sort</label>
+                <div class="filter-control">
+                  <select id="sort-order">
+                    <option value="name-asc">Name A → Z</option>
+                    <option value="team">Team</option>
+                    <option value="height-desc">Height (tall → short)</option>
+                    <option value="weight-desc">Weight (heavy → light)</option>
+                    <option value="jersey-asc">Jersey #</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel snapshot-panel">
+              <header class="panel-header">
+                <h2 class="panel-title">Snapshot</h2>
+              </header>
+              <div class="snapshot-list">
+                <div class="snapshot-row">
+                  <span>Unique teams</span>
+                  <span id="snapshot-teams">0</span>
+                </div>
+                <div class="snapshot-row">
+                  <span>Guards</span>
+                  <span id="snapshot-guards">0</span>
+                </div>
+                <div class="snapshot-row">
+                  <span>Wings / Forwards</span>
+                  <span id="snapshot-forwards">0</span>
+                </div>
+                <div class="snapshot-row">
+                  <span>Bigs / Centers</span>
+                  <span id="snapshot-centers">0</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <!-- Player board column -->
+          <section class="player-board-column">
+            <article class="panel">
+              <header class="panel-header">
+                <div>
+                  <h2 class="panel-title">Player Board</h2>
+                  <p class="panel-subtitle" id="player-board-subtitle">
+                    Loading players...
+                  </p>
+                </div>
+                <div class="panel-meta">
+                  <span class="meta-dot"></span>
+                  <span class="meta-text">Always on • No schedule required</span>
+                  <span class="meta-count" id="player-count">0</span>
+                  <span class="meta-label">Players</span>
+                </div>
+              </header>
+              <div class="panel-body">
+                <div id="player-grid" class="player-grid">
+                  <!-- cards injected here -->
+                </div>
+                <div id="player-empty" class="empty-state hidden">
+                  <p>No players match your filters.</p>
+                  <p class="muted">
+                    Adjust search, team, or position filters to see more players.
+                  </p>
+                  <button id="player-clear-filters" class="tiny-btn">
+                    Clear filters
+                  </button>
+                </div>
+              </div>
+            </article>
+          </section>
+        </div>
+      </section>
+
+      <!-- TEAMS -->
+      <section id="teams-view" class="view">
+        <article class="panel span-2">
+          <header class="panel-header">
+            <div>
+              <h2 class="panel-title">Teams Hub</h2>
+              <p class="panel-subtitle">Rosters grouped by team</p>
+            </div>
+            <select id="teams-filter-team" class="panel-select">
+              <option value="">All teams</option>
+            </select>
+          </header>
+          <div class="panel-body" id="teams-list">
+            <p class="muted">Loading teams...</p>
           </div>
-        </section>
+        </article>
+      </section>
+
+      <!-- TRENDS -->
+      <section id="trends-view" class="view">
+        <article class="panel span-2">
+          <header class="panel-header">
+            <div>
+              <h2 class="panel-title">Trends &amp; Signals</h2>
+              <p class="panel-subtitle">
+                Running hot vs season baselines
+              </p>
+            </div>
+            <div class="panel-actions">
+              <select id="trends-stat" class="panel-select">
+                <option value="pts">Points</option>
+                <option value="reb">Rebounds</option>
+                <option value="ast">Assists</option>
+                <option value="usage">Usage</option>
+              </select>
+              <select id="trends-position" class="panel-select">
+                <option value="">All positions</option>
+                <option value="G">Guards</option>
+                <option value="F">Wings / Forwards</option>
+                <option value="C">Bigs / Centers</option>
+              </select>
+            </div>
+          </header>
+          <div class="panel-body" id="trends-list">
+            <p class="muted">Loading trends...</p>
+          </div>
+        </article>
       </section>
     </main>
   </div>
