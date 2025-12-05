@@ -400,6 +400,19 @@ function renderPlayerGrid() {
 
   const cards = players.map((p) => renderPlayerCard(p)).join("");
   grid.innerHTML = cards;
+
+  // Explicitly wire click -> player modal (matches earlier working behavior)
+  const cardEls = grid.querySelectorAll(".player-card");
+  cardEls.forEach((card) => {
+    card.addEventListener("click", () => {
+      const id = card.dataset.playerId || "";
+      if (!id) return;
+      const name = card.dataset.playerName || "";
+      const team = card.dataset.playerTeam || "";
+      const pos = card.dataset.playerPos || "";
+      openPlayerModal({ id, name, team, pos });
+    });
+  });
 }
 
 function renderPlayerCard(p) {
@@ -421,7 +434,7 @@ function renderPlayerCard(p) {
       <img
         src="${logoUrl}"
         alt="${team} logo"
-        class="player-badge-logo team-logo-img"
+        class="player-badge-logo"
         onerror="this.style.display='none';"
       />
       <span class="player-badge-text">${team}</span>
@@ -1147,7 +1160,6 @@ async function ensureEdgesData(stat) {
     const json = await res.json();
     edgesTabState.byStat[stat] = json.data || [];
 
-    // populate team filter if needed
     const teamSelect = document.getElementById("edges-team");
     if (teamSelect && !teamSelect.dataset.populated) {
       const teams = new Set();
@@ -1178,14 +1190,14 @@ async function ensureEdgesData(stat) {
 
 function renderEdgesTable() {
   const stat = edgesTabState.currentStat || "pts";
-  const raw = edgesTabState.byStat[stat] || [];
+  const raw = edgesTabState.byStat[stat] || {};
   const posFilter = (edgesTabState.position || "").toUpperCase();
   const teamFilter = edgesTabState.team || "";
 
   const tbody = document.getElementById("edges-rows");
   if (!tbody) return;
 
-  let rows = raw;
+  let rows = Array.isArray(raw) ? raw : [];
 
   if (posFilter) {
     rows = rows.filter((p) =>
@@ -1256,8 +1268,11 @@ function setupPlayerModal() {
   if (closeBtn) closeBtn.addEventListener("click", closePlayerModal);
   if (backdrop) backdrop.addEventListener("click", closePlayerModal);
 
-  // Global handler for ANY element with data-player-id
+  // Global handler for ANY non-card element with data-player-id
   document.addEventListener("click", (evt) => {
+    // Player cards have their own handler; avoid double-fire
+    if (evt.target.closest(".player-card")) return;
+
     const target = evt.target.closest("[data-player-id]");
     if (!target) return;
 
