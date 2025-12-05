@@ -493,16 +493,12 @@ body {
   font-size: 10px;
 }
 
-.player-badge-logo-wrap {
+.player-badge-logo {
   width: 18px;
   height: 18px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
-}
-
-.player-badge-logo-wrap.no-logo {
-  display: none;
 }
 
 .player-badge-text {
