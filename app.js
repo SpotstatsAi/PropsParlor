@@ -401,7 +401,7 @@ function renderPlayerGrid() {
   const cards = players.map((p) => renderPlayerCard(p)).join("");
   grid.innerHTML = cards;
 
-  // Explicitly wire click -> player modal (matches earlier working behavior)
+  // Clicking a card opens player modal
   const cardEls = grid.querySelectorAll(".player-card");
   cardEls.forEach((card) => {
     card.addEventListener("click", () => {
@@ -1258,6 +1258,8 @@ function renderEdgesTable() {
 
 /* ---------------- PLAYER MODAL ---------------- */
 
+let currentPlayerModal = null; // track player currently shown in modal
+
 function setupPlayerModal() {
   const modal = document.getElementById("player-modal");
   if (!modal) return;
@@ -1267,6 +1269,22 @@ function setupPlayerModal() {
 
   if (closeBtn) closeBtn.addEventListener("click", closePlayerModal);
   if (backdrop) backdrop.addEventListener("click", closePlayerModal);
+
+  // "View Detail Page" -> reload stats with more games
+  const detailBtn = document.getElementById("player-detail-btn");
+  if (detailBtn) {
+    detailBtn.addEventListener("click", () => {
+      if (!currentPlayerModal || !currentPlayerModal.id) return;
+      const summaryEl = document.getElementById("modal-summary");
+      const tbody = document.getElementById("modal-stats-rows");
+      if (!summaryEl || !tbody) return;
+
+      // Load 50 games as a "detail" view
+      loadPlayerStats(currentPlayerModal.id, summaryEl, tbody, 50);
+      detailBtn.textContent = "Showing 50 games";
+      detailBtn.disabled = true;
+    });
+  }
 
   // Global handler for ANY non-card element with data-player-id
   document.addEventListener("click", (evt) => {
@@ -1291,12 +1309,21 @@ function openPlayerModal(player) {
   const modal = document.getElementById("player-modal");
   if (!modal) return;
 
+  currentPlayerModal = player; // store for "View Detail Page"
+
   modal.classList.remove("hidden");
 
   const nameEl = document.getElementById("modal-player-name");
   const metaEl = document.getElementById("modal-player-meta");
   const summaryEl = document.getElementById("modal-summary");
   const tbody = document.getElementById("modal-stats-rows");
+  const detailBtn = document.getElementById("player-detail-btn");
+
+  // reset detail button on each open
+  if (detailBtn) {
+    detailBtn.textContent = "View Detail Page";
+    detailBtn.disabled = false;
+  }
 
   const name = player.name || "Player";
   const teamAbbr = player.team || "";
@@ -1342,7 +1369,8 @@ function openPlayerModal(player) {
     return;
   }
 
-  loadPlayerStats(player.id, summaryEl, tbody);
+  // initial is last 10
+  loadPlayerStats(player.id, summaryEl, tbody, 10);
 }
 
 function closePlayerModal() {
@@ -1350,11 +1378,11 @@ function closePlayerModal() {
   if (modal) modal.classList.add("hidden");
 }
 
-async function loadPlayerStats(playerId, summaryEl, tbody) {
+async function loadPlayerStats(playerId, summaryEl, tbody, lastN = 10) {
   try {
     const url = `/api/stats?player_id=${encodeURIComponent(
       playerId
-    )}&last_n=10`;
+    )}&last_n=${lastN}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error("stats fetch failed");
     const json = await res.json();
@@ -1372,10 +1400,10 @@ async function loadPlayerStats(playerId, summaryEl, tbody) {
       return;
     }
 
-    const lastN = meta.lastN || rows.length;
+    const effectiveLastN = meta.lastN || rows.length;
     const teamMeta = meta.team || meta.teamAbbr || "";
     if (summaryEl) {
-      summaryEl.textContent = `Last ${lastN} games${
+      summaryEl.textContent = `Last ${effectiveLastN} games${
         teamMeta ? ` • ${teamMeta}` : ""
       }`;
     }
