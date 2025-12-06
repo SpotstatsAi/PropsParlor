@@ -1049,41 +1049,48 @@ async function loadOverviewEdgeBoard() {
 
     rows.sort((a, b) => (b.delta || 0) - (a.delta || 0));
 
-    const html = rows
-      .map((p) => {
-        const name = escapeHtml(p.name);
-        const team = escapeHtml(p.team || "");
-        const pos = escapeHtml(p.pos || "");
-        const statLabel = labels[p.stat] || p.stat.toUpperCase();
-        const recent = p.recent != null ? p.recent.toFixed(1) : "–";
-        const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
-        const delta = p.delta != null ? p.delta.toFixed(1) : "–";
-        const id =
-          p.player_id != null
-            ? String(p.player_id)
-            : p.id != null
-            ? String(p.id)
-            : "";
+const html = rows
+  .map((p) => {
+    const name = escapeHtml(p.name);
+    const team = escapeHtml(p.team || "");
+    const pos = escapeHtml(p.pos || "");
+    const statLabel = labels[p.stat] || p.stat.toUpperCase();
+    const recent = p.recent != null ? p.recent.toFixed(1) : "–";
+    const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
+    const deltaRaw = p.delta;
+    const delta = deltaRaw != null ? deltaRaw.toFixed(1) : "–";
+    const id =
+      p.player_id != null
+        ? String(p.player_id)
+        : p.id != null
+        ? String(p.id)
+        : "";
 
-        return `
-          <div class="overview-row"
-               data-player-id="${id}"
-               data-player-name="${name}"
-               data-player-team="${team}"
-               data-player-pos="${pos}">
-            <div class="overview-row-main">
-              <span>${name}</span>
-              <span class="muted">${team}${pos ? " • " + pos : ""}</span>
-            </div>
-            <div class="overview-row-meta">
-              <div class="team-sub">${statLabel}</div>
-              <div class="team-sub">Recent: ${recent} • Season: ${season}</div>
-              <div class="badge-soft">Δ ${delta}</div>
-            </div>
+    const tier = getEdgeTier(deltaRaw);
+
+    return `
+      <div class="overview-row"
+           data-player-id="${id}"
+           data-player-name="${name}"
+           data-player-team="${team}"
+           data-player-pos="${pos}">
+        <div class="overview-row-main">
+          <span>${name}</span>
+          <span class="muted">${team}${pos ? " • " + pos : ""}</span>
+        </div>
+        <div class="overview-row-meta">
+          <div class="team-sub">${statLabel}</div>
+          <div class="team-sub">Recent: ${recent} • Season: ${season}</div>
+          <div class="team-sub">
+            <span class="badge-soft">Δ ${delta}</span>
+            <span class="prop-chip ${tier.cls}">${tier.label}</span>
           </div>
-        `;
-      })
-      .join("");
+        </div>
+      </div>
+    `;
+  })
+  .join("");
+
 
     el.innerHTML = `<div class="overview-list">${html}</div>`;
   } catch (err) {
