@@ -23910,9 +23910,11 @@
     "sr_away_id": "583ecea6-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "6028a583-ea05-419d-af01-5a74e572f0a4",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T00:00:00+00:00",
+      "home_points": 106,
+      "away_points": 105,
       "track_on_court": true,
       "sr_id": "sr:match:62924655",
       "reference": "0022500339",
@@ -23980,9 +23982,11 @@
     "sr_away_id": "583ecae2-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "6485b15f-9a2f-477c-b153-95cc0010aa4a",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T00:00:00+00:00",
+      "home_points": 126,
+      "away_points": 105,
       "track_on_court": true,
       "sr_id": "sr:match:62924701",
       "reference": "0022500338",
@@ -24049,9 +24053,11 @@
     "sr_away_id": "583ece50-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "0e889fb1-ecfe-4bae-bf43-331ad1853cce",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T00:30:00+00:00",
+      "home_points": 146,
+      "away_points": 112,
       "track_on_court": true,
       "sr_id": "sr:match:62925617",
       "reference": "0022500343",
@@ -24123,9 +24129,11 @@
     "sr_away_id": "583ecd4f-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "17487460-c85b-4bc7-95f1-0a29b0d98a00",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T00:30:00+00:00",
+      "home_points": 130,
+      "away_points": 117,
       "track_on_court": true,
       "sr_id": "sr:match:62925817",
       "reference": "0022500341",
@@ -24193,9 +24201,11 @@
     "sr_away_id": "583ed102-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "41ddf6ea-8b12-4430-8c61-004992ff731e",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T00:30:00+00:00",
+      "home_points": 133,
+      "away_points": 134,
       "track_on_court": true,
       "sr_id": "sr:match:62924673",
       "reference": "0022500340",
@@ -24263,9 +24273,11 @@
     "sr_away_id": "583ec97e-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "4ecaf4bf-fa3e-461a-8005-6e73f58b1746",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T00:30:00+00:00",
+      "home_points": 86,
+      "away_points": 111,
       "track_on_court": true,
       "sr_id": "sr:match:62924513",
       "reference": "0022500344",
@@ -24332,9 +24344,11 @@
     "sr_away_id": "583ed056-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "59b7169e-d3ac-4d54-8779-c0a9adb88788",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T00:30:00+00:00",
+      "home_points": 122,
+      "away_points": 116,
       "track_on_court": true,
       "sr_id": "sr:match:62924629",
       "reference": "0022500342",
@@ -24401,9 +24415,11 @@
     "sr_away_id": "583ec7cd-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "0c1c2c0c-014e-4365-ba3a-4bffeb329bd4",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T01:00:00+00:00",
+      "home_points": 105,
+      "away_points": 120,
       "track_on_court": true,
       "sr_id": "sr:match:62926195",
       "reference": "0022500345",
@@ -24476,9 +24492,11 @@
     "sr_away_id": "583ecdfb-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "6cbfda77-35d2-47e5-8e74-e15878a71d75",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T01:00:00+00:00",
+      "home_points": 107,
+      "away_points": 98,
       "track_on_court": true,
       "sr_id": "sr:match:62926045",
       "reference": "0022500347",
@@ -24546,9 +24564,11 @@
     "sr_away_id": "583ec87d-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "8602f248-21ea-4e7b-9717-7470af4dbedb",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T01:00:00+00:00",
+      "home_points": 101,
+      "away_points": 116,
       "track_on_court": true,
       "sr_id": "sr:match:62925667",
       "reference": "0022500348",
@@ -24620,9 +24640,11 @@
     "sr_away_id": "583ecfa8-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "d67745ea-a8b3-487a-b92e-be07c2bda547",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T01:00:00+00:00",
+      "home_points": 117,
+      "away_points": 98,
       "track_on_court": true,
       "sr_id": "sr:match:62924561",
       "reference": "0022500346",
@@ -24694,9 +24716,11 @@
     "sr_away_id": "583ecf50-fb46-11e1-82cb-f4ce4684ea4c",
     "raw_sportradar": {
       "id": "de780451-aa86-462b-8ee2-18ff29b72a64",
-      "status": "scheduled",
+      "status": "closed",
       "coverage": "full",
       "scheduled": "2025-12-06T02:30:00+00:00",
+      "home_points": 132,
+      "away_points": 111,
       "track_on_court": true,
       "sr_id": "sr:match:62925825",
       "reference": "0022500349",
@@ -26637,6 +26661,12 @@
           "type": "TV",
           "locale": "Away",
           "channel": "649"
+        },
+        {
+          "network": "NBA TV",
+          "type": "TV",
+          "locale": "National",
+          "channel": "216"
         }
       ],
       "home": {
@@ -26984,6 +27014,12 @@
           "type": "TV",
           "locale": "Away",
           "channel": "668"
+        },
+        {
+          "network": "NBA TV",
+          "type": "TV",
+          "locale": "National",
+          "channel": "216"
         }
       ],
       "home": {
@@ -35705,12 +35741,6 @@
           "type": "TV",
           "locale": "Away",
           "channel": "674"
-        },
-        {
-          "network": "NBA TV",
-          "type": "TV",
-          "locale": "National",
-          "channel": "216"
         }
       ],
       "home": {
@@ -35919,12 +35949,6 @@
           "type": "TV",
           "locale": "Home",
           "channel": "698"
-        },
-        {
-          "network": "NBA TV",
-          "type": "TV",
-          "locale": "National",
-          "channel": "216"
         }
       ],
       "home": {
@@ -37218,12 +37242,6 @@
           "type": "TV",
           "locale": "Home",
           "channel": "696"
-        },
-        {
-          "network": "NBA TV",
-          "type": "TV",
-          "locale": "National",
-          "channel": "216"
         }
       ],
       "home": {
@@ -37294,6 +37312,12 @@
           "type": "TV",
           "locale": "Home",
           "channel": "693"
+        },
+        {
+          "network": "NBA TV",
+          "type": "TV",
+          "locale": "National",
+          "channel": "216"
         }
       ],
       "home": {
