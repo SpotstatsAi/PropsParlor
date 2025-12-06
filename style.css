@@ -50,6 +50,53 @@ body {
   gap: 14px;
 }
 
+/* --------------------------------------------------
+   GLOBAL TEAM LOGO BACKGROUNDS (LOCAL PNGs)
+   -------------------------------------------------- */
+
+.team-logo {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  vertical-align: middle;
+}
+
+/* One class per NBA team, using local PNGs in /logos */
+
+.logo-atl { background-image: url("logos/atl.png"); }
+.logo-bos { background-image: url("logos/bos.png"); }
+.logo-bkn { background-image: url("logos/bkn.png"); }
+.logo-cha { background-image: url("logos/cha.png"); }
+.logo-chi { background-image: url("logos/chi.png"); }
+.logo-cle { background-image: url("logos/cle.png"); }
+.logo-dal { background-image: url("logos/dal.png"); }
+.logo-den { background-image: url("logos/den.png"); }
+.logo-det { background-image: url("logos/det.png"); }
+.logo-gsw { background-image: url("logos/gsw.png"); }
+.logo-hou { background-image: url("logos/hou.png"); }
+.logo-ind { background-image: url("logos/ind.png"); }
+.logo-lac { background-image: url("logos/lac.png"); }
+.logo-lal { background-image: url("logos/lal.png"); }
+.logo-mem { background-image: url("logos/mem.png"); }
+.logo-mia { background-image: url("logos/mia.png"); }
+.logo-mil { background-image: url("logos/mil.png"); }
+.logo-min { background-image: url("logos/min.png"); }
+.logo-nop { background-image: url("logos/nop.png"); }
+.logo-nyk { background-image: url("logos/nyk.png"); }
+.logo-okc { background-image: url("logos/okc.png"); }
+.logo-orl { background-image: url("logos/orl.png"); }
+.logo-phi { background-image: url("logos/phi.png"); }
+.logo-phx { background-image: url("logos/phx.png"); }
+.logo-por { background-image: url("logos/por.png"); }
+.logo-sas { background-image: url("logos/sas.png"); }
+.logo-sac { background-image: url("logos/sac.png"); }
+.logo-tor { background-image: url("logos/tor.png"); }
+.logo-uta { background-image: url("logos/uta.png"); }
+.logo-was { background-image: url("logos/was.png"); }
+
 /* Header */
 
 .app-header {
@@ -736,15 +783,6 @@ body {
   border: 1px solid rgba(148, 163, 184, 0.6);
 }
 
-/* optional: if your HTML wraps the logo + text in a flex row, this keeps things aligned */
-/*
-.modal-header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-*/
-
 .modal-player-name,
 .modal-title-text {
   font-size: 15px;
@@ -827,7 +865,7 @@ body {
   text-align: left;
 }
 
-/* Player detail layout (two-column inside detail modal if present) */
+/* Player detail layout (two-column inside detail modal) */
 
 .player-detail-layout {
   display: grid;
