@@ -25,7 +25,6 @@
             type="search"
             placeholder="Search players or teams..."
           />
-          <!-- global search dropdown -->
           <div id="global-search-results" class="search-results hidden"></div>
         </div>
       </div>
@@ -42,7 +41,6 @@
       <button class="nav-tab active" data-view="overview-view">Overview</button>
       <button class="nav-tab" data-view="games-view">Games</button>
       <button class="nav-tab" data-view="players-view">Players</button>
-      <button class="nav-tab" data-view="edges-view">Edges</button>
       <button class="nav-tab" data-view="teams-view">Teams</button>
       <button class="nav-tab" data-view="trends-view">Trends</button>
     </nav>
@@ -277,58 +275,6 @@
         </div>
       </section>
 
-      <!-- EDGES (tab view) -->
-      <section id="edges-view" class="view">
-        <article class="panel span-2">
-          <header class="panel-header">
-            <div>
-              <h2 class="panel-title">Edge Board</h2>
-              <p class="panel-subtitle">Strongest model edges by stat</p>
-            </div>
-            <div class="panel-actions">
-              <select id="edges-view-stat" class="panel-select">
-                <option value="pts">Points</option>
-                <option value="reb">Rebounds</option>
-                <option value="ast">Assists</option>
-              </select>
-              <select id="edges-view-position" class="panel-select">
-                <option value="">All positions</option>
-                <option value="G">Guards</option>
-                <option value="F">Wings / Forwards</option>
-                <option value="C">Bigs / Centers</option>
-              </select>
-              <select id="edges-view-team" class="panel-select">
-                <option value="">All teams</option>
-              </select>
-            </div>
-          </header>
-          <div class="panel-body">
-            <div class="modal-table-wrapper edge-table-wrapper">
-              <table class="stats-table">
-                <thead>
-                  <tr>
-                    <th class="cell-left">Player</th>
-                    <th>Team</th>
-                    <th>Pos</th>
-                    <th>Stat</th>
-                    <th>Recent</th>
-                    <th>Season</th>
-                    <th>Δ</th>
-                  </tr>
-                </thead>
-                <tbody id="edges-view-rows">
-                  <tr>
-                    <td colspan="7" class="muted cell-left">
-                      Loading edge board...
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </article>
-      </section>
-
       <!-- TEAMS -->
       <section id="teams-view" class="view">
         <article class="panel span-2">
@@ -380,26 +326,24 @@
     </main>
   </div>
 
-  <!-- Last-10 player modal -->
+  <!-- PLAYER LAST-10 MODAL -->
   <div id="player-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-panel">
       <header class="modal-header">
         <div class="modal-title-block">
-          <div class="modal-player-header-row">
-            <div class="modal-player-logo-circle">
-              <img id="modal-player-logo" class="modal-player-logo" src="" alt="" />
-            </div>
+          <div class="modal-title-row">
+            <img id="player-modal-logo" class="modal-team-logo" alt="team logo" />
             <div>
-              <div class="modal-player-name" id="modal-player-name"></div>
-              <div class="modal-player-meta" id="modal-player-meta"></div>
+              <div id="modal-player-name" class="modal-player-name"></div>
+              <div id="modal-player-meta" class="modal-player-meta"></div>
             </div>
           </div>
         </div>
         <button id="modal-close" class="modal-close-btn">&times;</button>
       </header>
       <div class="modal-body">
-        <div class="modal-summary" id="modal-summary"></div>
+        <div id="modal-summary" class="modal-summary"></div>
         <div class="modal-table-wrapper">
           <table class="stats-table">
             <thead>
@@ -412,53 +356,110 @@
                 <th>AST</th>
               </tr>
             </thead>
-            <tbody id="modal-stats-rows">
-              <tr>
-                <td colspan="6" class="muted cell-left">Loading...</td>
-              </tr>
-            </tbody>
+            <tbody id="modal-stats-rows"></tbody>
           </table>
         </div>
-        <div class="modal-footer">
-          <button id="modal-view-detail" class="tiny-btn detail-btn">
-            View Detail Page
-          </button>
+        <div class="modal-footer-row">
+          <button id="player-detail-btn" class="tiny-btn">View Detail Page</button>
+          <span id="modal-status" class="modal-summary"></span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Game modal -->
-  <div id="game-modal" class="modal hidden">
+  <!-- PLAYER DETAIL MODAL -->
+  <div id="player-detail-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
-    <div class="modal-panel">
+    <div class="modal-panel modal-panel-large">
       <header class="modal-header">
         <div class="modal-title-block">
-          <div class="modal-player-name" id="game-modal-title"></div>
-          <div class="modal-player-meta" id="game-modal-meta"></div>
+          <div class="modal-title-row">
+            <img id="player-detail-logo" class="modal-team-logo" alt="team logo" />
+            <div>
+              <div id="player-detail-name" class="modal-player-name"></div>
+              <div id="player-detail-meta" class="modal-player-meta"></div>
+            </div>
+          </div>
         </div>
-        <button id="game-modal-close" class="modal-close-btn">&times;</button>
+        <button id="player-detail-close" class="modal-close-btn">&times;</button>
       </header>
-      <div class="modal-body">
-        <div class="modal-summary">
-          Stat focus:
-          <select id="game-modal-stat" class="panel-select">
-            <option value="pts">Points</option>
-            <option value="reb">Rebounds</option>
-            <option value="ast">Assists</option>
-          </select>
-        </div>
-        <div class="detail-layout">
-          <section class="detail-left">
-            <h3 class="detail-section-title">Edges</h3>
-            <div id="game-modal-edges" class="modal-section-body">
-              <p class="muted">Loading edges...</p>
+      <div class="modal-body detail-grid">
+        <div class="detail-left">
+          <section class="detail-section">
+            <h3 class="detail-section-title">Season Snapshot</h3>
+            <div class="detail-snapshot-grid">
+              <div class="detail-snapshot-row">
+                <span>Team</span>
+                <span id="detail-snapshot-team"></span>
+              </div>
+              <div class="detail-snapshot-row">
+                <span>Games in sample</span>
+                <span id="detail-snapshot-games"></span>
+              </div>
+              <div class="detail-snapshot-row">
+                <span>Minutes</span>
+                <span id="detail-snapshot-min"></span>
+              </div>
+              <div class="detail-snapshot-row">
+                <span>Points</span>
+                <span id="detail-snapshot-pts"></span>
+              </div>
+              <div class="detail-snapshot-row">
+                <span>Rebounds</span>
+                <span id="detail-snapshot-reb"></span>
+              </div>
+              <div class="detail-snapshot-row">
+                <span>Assists</span>
+                <span id="detail-snapshot-ast"></span>
+              </div>
             </div>
           </section>
-          <section class="detail-right">
-            <h3 class="detail-section-title">Trending</h3>
-            <div id="game-modal-trending" class="modal-section-body">
-              <p class="muted">Loading trends...</p>
+
+          <section class="detail-section">
+            <h3 class="detail-section-title">Season Averages</h3>
+            <div class="detail-table-wrapper">
+              <table class="stats-table detail-avg-table">
+                <thead>
+                  <tr>
+                    <th class="cell-left">Stat</th>
+                    <th>Season</th>
+                    <th>L10</th>
+                    <th>L5</th>
+                  </tr>
+                </thead>
+                <tbody id="detail-averages-rows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="detail-section">
+            <h3 class="detail-section-title">PTS Trend (last 50 games)</h3>
+            <div class="detail-chart-shell">
+              <canvas id="detail-pts-canvas"></canvas>
+            </div>
+          </section>
+        </div>
+
+        <div class="detail-right">
+          <section class="detail-section">
+            <div class="detail-header-row">
+              <h3 class="detail-section-title">Last 50 games</h3>
+              <span id="detail-games-summary" class="detail-games-summary"></span>
+            </div>
+            <div class="detail-table-wrapper detail-games-table-wrapper">
+              <table class="stats-table">
+                <thead>
+                  <tr>
+                    <th class="cell-left">Date</th>
+                    <th class="cell-left">Opp</th>
+                    <th>MIN</th>
+                    <th>PTS</th>
+                    <th>REB</th>
+                    <th>AST</th>
+                  </tr>
+                </thead>
+                <tbody id="detail-games-rows"></tbody>
+              </table>
             </div>
           </section>
         </div>
@@ -466,21 +467,50 @@
     </div>
   </div>
 
-  <!-- Edge board modal -->
+  <!-- GAME MODAL -->
+  <div id="game-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel modal-panel-large">
+      <header class="modal-header">
+        <div class="modal-title-block">
+          <div id="game-modal-title" class="modal-player-name"></div>
+          <div id="game-modal-meta" class="modal-player-meta"></div>
+        </div>
+        <div class="modal-header-right">
+          <select id="game-modal-stat" class="panel-select">
+            <option value="pts">PTS</option>
+            <option value="reb">REB</option>
+            <option value="ast">AST</option>
+          </select>
+          <button id="game-modal-close" class="modal-close-btn">&times;</button>
+        </div>
+      </header>
+      <div class="modal-body game-modal-body">
+        <section class="modal-section">
+          <h3 class="detail-section-title">Edges</h3>
+          <div id="game-modal-edges" class="modal-section-body"></div>
+        </section>
+        <section class="modal-section">
+          <h3 class="detail-section-title">Trending</h3>
+          <div id="game-modal-trending" class="modal-section-body"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDGE BOARD MODAL -->
   <div id="edge-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-panel modal-panel-large">
       <header class="modal-header">
         <div class="modal-title-block">
           <div class="modal-player-name">Today's Edge Board</div>
-          <div class="modal-player-meta">
-            Filter by stat, position and team
-          </div>
+          <div class="modal-player-meta">Filter by stat, position, team</div>
         </div>
         <button id="edge-modal-close" class="modal-close-btn">&times;</button>
       </header>
       <div class="modal-body">
-        <div class="panel-actions modal-actions-row">
+        <div class="edge-filters-row">
           <select id="edge-modal-stat" class="panel-select">
             <option value="pts">Points</option>
             <option value="reb">Rebounds</option>
@@ -509,43 +539,8 @@
                 <th>Δ</th>
               </tr>
             </thead>
-            <tbody id="edge-modal-rows">
-              <tr>
-                <td colspan="7" class="muted cell-left">
-                  Loading edge board...
-                </td>
-              </tr>
-            </tbody>
+            <tbody id="edge-modal-rows"></tbody>
           </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Player detail modal (full card with chart) -->
-  <div id="player-detail-modal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-panel modal-panel-large">
-      <header class="modal-header">
-        <div class="modal-title-block">
-          <div class="modal-player-header-row">
-            <div class="modal-player-logo-circle">
-              <img id="detail-player-logo" class="modal-player-logo" src="" alt="" />
-            </div>
-            <div>
-              <div class="modal-player-name" id="detail-player-name"></div>
-              <div class="modal-player-meta" id="detail-player-meta"></div>
-            </div>
-          </div>
-        </div>
-        <button id="player-detail-close" class="modal-close-btn">&times;</button>
-      </header>
-      <div class="modal-body detail-body">
-        <div id="player-detail-content" class="detail-layout">
-          <!-- filled by JS -->
-        </div>
-        <div class="detail-footer" id="player-detail-footer">
-          Detail loaded.
         </div>
       </div>
     </div>
