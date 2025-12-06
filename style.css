@@ -446,7 +446,7 @@ body {
 
 .player-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 10px;
 }
 
@@ -460,14 +460,15 @@ body {
   font-size: 11px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
 }
 
-.player-card-header-row {
+.player-card-header {
   display: flex;
   justify-content: space-between;
   gap: 6px;
+  align-items: center;
 }
 
 .player-name {
@@ -480,57 +481,40 @@ body {
   color: var(--text-soft);
 }
 
-.player-header-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.player-team-pill {
-  border-radius: 999px;
-  padding: 2px 8px;
-  background: rgba(9, 10, 24, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 10px;
-}
-
 .player-tagline {
   font-size: 10px;
   color: #63e6be;
 }
 
-/* logo bubble on card */
-.player-logo-shell {
-  margin-top: 6px;
-  margin-bottom: 4px;
-  display: flex;
-  justify-content: center;
+.player-team-pill {
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: rgba(9, 10, 24, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 10px;
 }
 
-.player-logo-circle {
-  width: 90px;
-  height: 90px;
+.player-card-logo-row {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 10px;
+}
+
+.player-card-logo-circle {
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 0, #353b66, #040515);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: radial-gradient(circle at 30% 20%, #262b4f, #050712);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.75);
-  overflow: hidden;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.8);
 }
 
-.player-logo-circle img {
-  max-width: 70px;
-  max-height: 70px;
+.player-card-logo-img {
+  width: 64px;
+  height: 64px;
   object-fit: contain;
-  display: block;
-}
-
-.player-logo-placeholder {
-  font-size: 12px;
-  color: var(--text-soft);
 }
 
 .player-body-row {
@@ -613,27 +597,61 @@ body {
 }
 
 .prop-chip-high {
-  background: rgba(22, 163, 74, 0.18);          /* green */
+  background: rgba(22, 163, 74, 0.18);
   border-color: rgba(34, 197, 94, 0.7);
   color: #bbf7d0;
 }
 
 .prop-chip-med {
-  background: rgba(234, 179, 8, 0.16);          /* yellow */
+  background: rgba(234, 179, 8, 0.16);
   border-color: rgba(250, 204, 21, 0.7);
   color: #fef9c3;
 }
 
 .prop-chip-low {
-  background: rgba(248, 113, 113, 0.16);        /* red */
+  background: rgba(248, 113, 113, 0.16);
   border-color: rgba(248, 113, 113, 0.7);
   color: #fecaca;
 }
 
 .prop-chip-na {
-  background: rgba(148, 163, 184, 0.12);        /* neutral */
+  background: rgba(148, 163, 184, 0.12);
   border-color: rgba(148, 163, 184, 0.6);
   color: #e5e7eb;
+}
+
+/* Mini delta bar used in Overview edge panels */
+
+.edge-delta-bar {
+  display: inline-block;
+  width: 72px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  overflow: hidden;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.edge-delta-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.edge-delta-bar-fill-high {
+  background: rgba(34, 197, 94, 0.9);
+}
+
+.edge-delta-bar-fill-med {
+  background: rgba(250, 204, 21, 0.9);
+}
+
+.edge-delta-bar-fill-low {
+  background: rgba(248, 113, 113, 0.9);
+}
+
+.edge-delta-bar-fill-na {
+  background: rgba(148, 163, 184, 0.7);
 }
 
 /* Teams list */
@@ -658,11 +676,6 @@ body {
   font-size: 10px;
   padding: 4px 10px;
   cursor: pointer;
-}
-
-.tiny-btn.detail-btn {
-  align-self: flex-start;
-  margin-top: 6px;
 }
 
 .muted {
@@ -699,7 +712,7 @@ body {
 .modal-panel {
   position: relative;
   max-width: 720px;
-  width: 92%;
+  width: 90%;
   max-height: 80vh;
   background: radial-gradient(circle at top left, #2d315a, #101221);
   border-radius: 22px;
@@ -728,28 +741,20 @@ body {
   gap: 2px;
 }
 
-.modal-player-header-row {
+.modal-title-row {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.modal-player-logo-circle {
+.modal-team-logo {
   width: 26px;
   height: 26px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 0, #353b66, #040515);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.modal-player-logo {
-  width: 22px;
-  height: 22px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
   object-fit: contain;
+  padding: 3px;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.5);
 }
 
 .modal-player-name {
@@ -775,11 +780,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow: hidden;
-}
-
-.modal-footer {
-  margin-top: 6px;
 }
 
 .modal-summary {
@@ -794,6 +794,13 @@ body {
   padding: 6px 8px;
   overflow: auto;
   max-height: 52vh;
+}
+
+.modal-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
 }
 
 /* Stats table */
@@ -834,15 +841,10 @@ body {
 
 /* Detail modal layout */
 
-.detail-body {
-  gap: 10px;
-}
-
-.detail-layout {
+.detail-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
   gap: 14px;
-  align-items: flex-start;
 }
 
 .detail-left,
@@ -852,68 +854,83 @@ body {
   gap: 10px;
 }
 
-.detail-card {
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.24);
+.detail-section {
+  background: rgba(3, 6, 24, 0.4);
+  border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 8px 10px;
+  padding: 10px 10px 8px;
 }
 
 .detail-section-title {
   margin: 0 0 6px;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--text-soft);
 }
 
-.detail-kv-row {
+.detail-snapshot-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.detail-snapshot-row {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.detail-kv-row + .detail-kv-row {
-  margin-top: 3px;
-}
-
-.detail-avg-table th,
-.detail-avg-table td {
-  font-size: 10px;
-}
-
-.detail-avg-table th {
-  text-align: left;
 }
 
 .detail-table-wrapper {
-  max-height: 48vh;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 4px 6px;
 }
 
-.detail-footer {
-  font-size: 10px;
-  text-align: center;
-  color: var(--text-soft);
-  margin-top: 4px;
-}
-
-/* chart area */
-
-.detail-chart-card {
-  padding-bottom: 10px;
-}
-
-.player-detail-chart {
+.detail-chart-shell {
   width: 100%;
   height: 140px;
-  display: block;
 }
 
-/* Edge table wrapper (edges tab) */
+.detail-chart-shell canvas {
+  width: 100%;
+  height: 100%;
+}
 
-.edge-table-wrapper {
-  max-height: 60vh;
+.detail-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-games-summary {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.detail-games-table-wrapper {
+  max-height: 46vh;
+}
+
+.game-modal-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.modal-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Edge board modal */
+
+.edge-filters-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 /* Responsive */
@@ -928,7 +945,10 @@ body {
   .players-layout {
     grid-template-columns: minmax(0, 1fr);
   }
-  .detail-layout {
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .game-modal-body {
     grid-template-columns: minmax(0, 1fr);
   }
 }
