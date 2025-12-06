@@ -8,10 +8,12 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTeamsView();
   setupTrendsView();
   setupOverviewView();
+  setupEdgesView();
   setupPlayerModal();
   setupPlayerDetailModal();
   setupGameModal();
   setupEdgeBoardModal();
+  setupPicksSystem();
   ensureOverviewLoaded();
 });
 
@@ -26,9 +28,7 @@ function setupNav() {
       const target = tab.dataset.view;
 
       tabs.forEach((t) => t.classList.toggle("active", t === tab));
-      views.forEach((v) =>
-        v.classList.toggle("active", v.id === target)
-      );
+      views.forEach((v) => v.classList.toggle("active", v.id === target));
 
       if (target === "players-view") {
         ensurePlayersLoaded();
@@ -38,6 +38,8 @@ function setupNav() {
         ensureTeamsLoaded();
       } else if (target === "trends-view") {
         ensureTrendsLoaded();
+      } else if (target === "edges-view") {
+        ensureEdgesLoaded();
       } else if (target === "overview-view") {
         ensureOverviewLoaded();
       }
@@ -74,9 +76,7 @@ function setupGlobalSearch() {
       }
       const q = input.value.trim();
       if (!q) return;
-      document
-        .querySelector('.nav-tab[data-view="players-view"]')
-        .click();
+      document.querySelector('.nav-tab[data-view="players-view"]').click();
       const playerSearch = document.getElementById("player-search");
       if (playerSearch) {
         playerSearch.value = q;
@@ -249,6 +249,8 @@ async function loadPlayers() {
 
 function populatePlayerFilters(players) {
   const teamSelect = document.getElementById("filter-team");
+  const edgesTeamSelect = document.getElementById("edges-team");
+  const edgeModalTeamSelect = document.getElementById("edge-modal-team");
   if (!teamSelect) return;
 
   const teams = new Set();
@@ -266,6 +268,13 @@ function populatePlayerFilters(players) {
     });
 
   teamSelect.innerHTML = options.join("");
+
+  if (edgesTeamSelect) {
+    edgesTeamSelect.innerHTML = options.join("");
+  }
+  if (edgeModalTeamSelect) {
+    edgeModalTeamSelect.innerHTML = options.join("");
+  }
 }
 
 function applyPlayerFilters() {
@@ -412,10 +421,9 @@ function renderPlayerCard(p) {
   const jersey = p.jersey ? `#${p.jersey}` : "—";
   const id = p.id != null ? String(p.id) : "";
 
-  const teamCodeRaw = p.team || "";
-  const teamCode = teamCodeRaw ? teamCodeRaw.toLowerCase() : "";
-  const logoSrc = teamCode ? `/logos/${teamCode}.png` : "";
-  const logoAlt = team ? `${team} logo` : "team logo";
+  const logoSrc = team
+    ? `logos/${encodeURIComponent(team)}.png`
+    : "";
 
   return `
     <div class="player-card"
@@ -433,21 +441,19 @@ function renderPlayerCard(p) {
             Always available • Player-only view
           </div>
         </div>
-        <div class="player-team-pill">
+        <div class="player-badge">
           ${team || "FA"}
         </div>
       </div>
-      <div class="player-card-logo-row">
-        <div class="player-card-logo-circle">
-          ${
-            logoSrc
-              ? `<img src="${logoSrc}" alt="${escapeHtml(
-                  logoAlt
-                )}" class="player-card-logo-img" />`
-              : ""
-          }
-        </div>
+
+      <div class="player-logo-shell">
+        ${
+          logoSrc
+            ? `<img src="${logoSrc}" alt="${team} logo" onerror="this.style.display='none';" />`
+            : ""
+        }
       </div>
+
       <div class="player-body-row">
         <span>Height</span>
         <span>${height}</span>
@@ -460,6 +466,7 @@ function renderPlayerCard(p) {
         <span>Jersey</span>
         <span>${jersey}</span>
       </div>
+
       <span class="jersey-pill">${jersey}</span>
     </div>
   `;
@@ -545,17 +552,10 @@ function renderGameRow(g, dateStr) {
   const home = escapeHtml(homeRaw);
   const away = escapeHtml(awayRaw);
 
-  const tip =
-    g.start_time_local ||
-    g.tipoff ||
-    g.start_time ||
-    "";
+  const tip = g.start_time_local || g.tipoff || g.start_time || "";
   const tipText = tip ? String(tip).slice(11, 16) : "TBD";
 
-  const gameId =
-    g.game_id ||
-    g.id ||
-    `${homeRaw}-${awayRaw}-${dateStr || ""}`;
+  const gameId = g.game_id || g.id || `${homeRaw}-${awayRaw}-${dateStr || ""}`;
 
   return `
     <div class="overview-row"
@@ -583,17 +583,13 @@ let cachedTeams = [];
 function setupTeamsView() {}
 
 function ensureTeamsLoaded() {
-  if (teamsLoaded) {
-    populateEdgeBoardTeamsFilter();
-    return;
-  }
+  if (teamsLoaded) return;
   loadTeams();
 }
 
 async function loadTeams() {
   const list = document.getElementById("teams-list");
   const filterSelect = document.getElementById("teams-filter-team");
-  const overviewFilter = document.getElementById("overview-teams-filter");
   if (!list) return;
   list.innerHTML = `<p class="muted">Loading teams...</p>`;
 
@@ -610,9 +606,7 @@ async function loadTeams() {
       teams.forEach((t) => {
         if (!t.team) return;
         opts.push(
-          `<option value="${escapeHtml(t.team)}">${escapeHtml(
-            t.team
-          )}</option>`
+          `<option value="${escapeHtml(t.team)}">${escapeHtml(t.team)}</option>`
         );
       });
       filterSelect.innerHTML = opts.join("");
@@ -621,25 +615,7 @@ async function loadTeams() {
       });
     }
 
-    if (overviewFilter) {
-      const opts = ['<option value="">All teams</option>'];
-      teams.forEach((t) => {
-        if (!t.team) return;
-        opts.push(
-          `<option value="${escapeHtml(t.team)}">${escapeHtml(
-            t.team
-          )}</option>`
-        );
-      });
-      overviewFilter.innerHTML = opts.join("");
-      overviewFilter.addEventListener("change", () => {
-        renderTeamsOverview(teams, overviewFilter.value || "");
-      });
-    }
-
     renderTeamsList(teams, "");
-    renderTeamsOverview(teams, "");
-    populateEdgeBoardTeamsFilter();
   } catch (err) {
     console.error(err);
     list.innerHTML = `<p class="muted">Error loading teams.</p>`;
@@ -684,39 +660,6 @@ function renderTeamsList(teams, filterTeam) {
     .join("");
 
   list.innerHTML = `<div class="teams-list">${rows}</div>`;
-}
-
-function renderTeamsOverview(teams, filterTeam) {
-  const el = document.getElementById("overview-teams");
-  if (!el) return;
-
-  let visible = teams;
-  if (filterTeam) {
-    visible = teams.filter((t) => t.team === filterTeam);
-  }
-
-  if (!visible.length) {
-    el.innerHTML = `<p class="muted">No team data.</p>`;
-    return;
-  }
-
-  const rows = visible
-    .slice(0, 8)
-    .map((t) => {
-      const name = escapeHtml(t.team);
-      const total = t.counts?.totalPlayers ?? 0;
-      return `
-        <div class="overview-row">
-          <div class="overview-row-main">
-            <span>${name}</span>
-            <span class="muted">${total} players</span>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
-
-  el.innerHTML = `<div class="overview-list">${rows}</div>`;
 }
 
 /* ---------------- TRENDS ---------------- */
@@ -843,7 +786,6 @@ function loadOverview() {
   loadOverviewGames();
   loadOverviewEdges(edgesStatSelect?.value || "pts");
   loadOverviewTrending(trendingStatSelect?.value || "pts");
-  ensureTeamsLoaded();
   loadOverviewEdgeBoard();
 }
 
@@ -918,6 +860,9 @@ async function loadOverviewEdges(stat) {
             ? String(p.id)
             : "";
 
+        const lineVal =
+          p.line != null ? p.line : p.prop_line != null ? p.prop_line : "";
+
         const tier = getEdgeTier(deltaRaw);
         const widthPct =
           maxDelta > 0 && typeof deltaRaw === "number" && deltaRaw > 0
@@ -947,6 +892,21 @@ async function loadOverviewEdges(stat) {
                        </span>`
                     : ""
                 }
+                <button
+                  class="tiny-btn picks-add-btn"
+                  data-pick-player-id="${id}"
+                  data-pick-name="${name}"
+                  data-pick-team="${team}"
+                  data-pick-pos="${pos}"
+                  data-pick-stat="${stat.toUpperCase()}"
+                  data-pick-line="${lineVal}"
+                  data-pick-delta="${deltaRaw != null ? deltaRaw : ""}"
+                  data-pick-recent="${p.recent != null ? p.recent : ""}"
+                  data-pick-season="${p.seasonAvg != null ? p.seasonAvg : ""}"
+                  data-pick-source="overview-edges"
+                >
+                  Add
+                </button>
               </div>
             </div>
           </div>
@@ -1053,11 +1013,6 @@ async function loadOverviewEdgeBoard() {
 
     rows.sort((a, b) => (b.delta || 0) - (a.delta || 0));
 
-    const positiveDeltas = rows
-      .map((p) => (typeof p.delta === "number" ? p.delta : 0))
-      .filter((v) => v > 0);
-    const maxDelta = positiveDeltas.length ? Math.max(...positiveDeltas) : 0;
-
     const html = rows
       .map((p) => {
         const name = escapeHtml(p.name);
@@ -1066,20 +1021,13 @@ async function loadOverviewEdgeBoard() {
         const statLabel = labels[p.stat] || p.stat.toUpperCase();
         const recent = p.recent != null ? p.recent.toFixed(1) : "–";
         const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
-        const deltaRaw = p.delta;
-        const delta = deltaRaw != null ? deltaRaw.toFixed(1) : "–";
+        const delta = p.delta != null ? p.delta.toFixed(1) : "–";
         const id =
           p.player_id != null
             ? String(p.player_id)
             : p.id != null
             ? String(p.id)
             : "";
-
-        const tier = getEdgeTier(deltaRaw);
-        const widthPct =
-          maxDelta > 0 && typeof deltaRaw === "number" && deltaRaw > 0
-            ? Math.max(6, Math.round((deltaRaw / maxDelta) * 100))
-            : 0;
 
         return `
           <div class="overview-row"
@@ -1094,17 +1042,7 @@ async function loadOverviewEdgeBoard() {
             <div class="overview-row-meta">
               <div class="team-sub">${statLabel}</div>
               <div class="team-sub">Recent: ${recent} • Season: ${season}</div>
-              <div class="team-sub">
-                <span class="badge-soft">Δ ${delta}</span>
-                <span class="prop-chip ${tier.cls}">${tier.label}</span>
-                ${
-                  widthPct > 0
-                    ? `<span class="edge-delta-bar">
-                         <span class="edge-delta-bar-fill ${tier.barCls}" style="width:${widthPct}%;"></span>
-                       </span>`
-                    : ""
-                }
-              </div>
+              <div class="badge-soft">Δ ${delta}</div>
             </div>
           </div>
         `;
@@ -1118,7 +1056,173 @@ async function loadOverviewEdgeBoard() {
   }
 }
 
-/* ---------------- PLAYER MODAL (LAST 10) ---------------- */
+/* ---------------- EDGES TAB ---------------- */
+
+let edgesLoaded = false;
+let edgesTabState = {
+  byStat: {},
+  currentStat: "pts",
+};
+
+function setupEdgesView() {
+  const statSelect = document.getElementById("edges-stat");
+  const posSelect = document.getElementById("edges-position");
+  const teamSelect = document.getElementById("edges-team");
+
+  if (statSelect) {
+    statSelect.addEventListener("change", () => {
+      edgesTabState.currentStat = statSelect.value || "pts";
+      ensureEdgesData(edgesTabState.currentStat).then(() => {
+        renderEdgesTable();
+      });
+    });
+  }
+
+  if (posSelect) {
+    posSelect.addEventListener("change", () => {
+      renderEdgesTable();
+    });
+  }
+
+  if (teamSelect) {
+    teamSelect.addEventListener("change", () => {
+      renderEdgesTable();
+    });
+  }
+}
+
+function ensureEdgesLoaded() {
+  if (edgesLoaded) {
+    renderEdgesTable();
+    return;
+  }
+  ensureEdgesData(edgesTabState.currentStat || "pts").then(() => {
+    edgesLoaded = true;
+    renderEdgesTable();
+  });
+}
+
+async function ensureEdgesData(stat) {
+  if (edgesTabState.byStat[stat]) return;
+
+  const tbody = document.getElementById("edges-table-rows");
+  if (tbody) {
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="muted">Loading edge board…</td></tr>';
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.set("stat", stat);
+    params.set("limit", "200");
+    const res = await fetch(`/api/edges?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to load edges");
+    const json = await res.json();
+    edgesTabState.byStat[stat] = json.data || [];
+  } catch (err) {
+    console.error(err);
+    if (tbody) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" class="muted">Error loading edge board.</td></tr>';
+    }
+  }
+}
+
+function renderEdgesTable() {
+  const stat = edgesTabState.currentStat || "pts";
+  const raw = edgesTabState.byStat[stat] || [];
+  const posFilter = (
+    document.getElementById("edges-position")?.value || ""
+  ).toUpperCase();
+  const teamFilter = document.getElementById("edges-team")?.value || "";
+
+  const tbody = document.getElementById("edges-table-rows");
+  if (!tbody) return;
+
+  let rows = raw;
+
+  if (posFilter) {
+    rows = rows.filter((p) =>
+      (p.pos || "").toUpperCase().includes(posFilter)
+    );
+  }
+
+  if (teamFilter) {
+    rows = rows.filter((p) => p.team === teamFilter);
+  }
+
+  rows = rows.slice().sort((a, b) => (b.delta || 0) - (a.delta || 0));
+
+  if (!rows.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="muted">No edges match these filters.</td></tr>';
+    return;
+  }
+
+  const label = stat.toUpperCase();
+
+  const html = rows
+    .map((p) => {
+      const name = escapeHtml(p.name || "");
+      const team = escapeHtml(p.team || "");
+      const pos = escapeHtml(p.pos || "");
+      const recent = p.recent != null ? p.recent.toFixed(1) : "–";
+      const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
+      const deltaRaw = p.delta;
+      const delta = deltaRaw != null ? deltaRaw.toFixed(1) : "–";
+      const id =
+        p.player_id != null
+          ? String(p.player_id)
+          : p.id != null
+          ? String(p.id)
+          : "";
+
+      const lineVal =
+        p.line != null ? p.line : p.prop_line != null ? p.prop_line : "";
+
+      const tier = getEdgeTier(deltaRaw);
+
+      return `
+        <tr data-player-id="${id}"
+            data-player-name="${name}"
+            data-player-team="${team}"
+            data-player-pos="${pos}">
+          <td class="cell-left">${name}</td>
+          <td>${team}</td>
+          <td>${pos}</td>
+          <td>${label}</td>
+          <td>${recent}</td>
+          <td>${season}</td>
+          <td>
+            ${delta}
+            <div class="picks-row-actions">
+              <span class="prop-chip ${tier.cls}">${tier.label}</span>
+              <button
+                class="picks-add-btn"
+                data-pick-player-id="${id}"
+                data-pick-name="${name}"
+                data-pick-team="${team}"
+                data-pick-pos="${pos}"
+                data-pick-stat="${label}"
+                data-pick-line="${lineVal}"
+                data-pick-delta="${deltaRaw != null ? deltaRaw : ""}"
+                data-pick-recent="${p.recent != null ? p.recent : ""}"
+                data-pick-season="${p.seasonAvg != null ? p.seasonAvg : ""}"
+                data-pick-source="edges-tab"
+              >
+                Add
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  tbody.innerHTML = html;
+}
+
+/* ---------------- PLAYER MODALS ---------------- */
 
 let currentPlayerForDetail = null;
 
@@ -1128,15 +1232,14 @@ function setupPlayerModal() {
 
   const closeBtn = document.getElementById("modal-close");
   const backdrop = modal.querySelector(".modal-backdrop");
-  const detailBtn = document.getElementById("player-detail-btn");
+  const viewDetailBtn = document.getElementById("modal-view-detail");
 
   if (closeBtn) closeBtn.addEventListener("click", closePlayerModal);
   if (backdrop) backdrop.addEventListener("click", closePlayerModal);
 
-  if (detailBtn) {
-    detailBtn.addEventListener("click", () => {
+  if (viewDetailBtn) {
+    viewDetailBtn.addEventListener("click", () => {
       if (!currentPlayerForDetail) return;
-      closePlayerModal();
       openPlayerDetailModal(currentPlayerForDetail);
     });
   }
@@ -1144,6 +1247,9 @@ function setupPlayerModal() {
   document.addEventListener("click", (evt) => {
     const target = evt.target.closest("[data-player-id]");
     if (!target) return;
+
+    // avoid clicks on Add buttons (picks)
+    if (evt.target.closest(".picks-add-btn")) return;
 
     const id = target.dataset.playerId || "";
     const name = target.dataset.playerName || "";
@@ -1161,14 +1267,12 @@ function openPlayerModal(player) {
   if (!modal) return;
 
   modal.classList.remove("hidden");
-  currentPlayerForDetail = player;
 
   const nameEl = document.getElementById("modal-player-name");
   const metaEl = document.getElementById("modal-player-meta");
   const summaryEl = document.getElementById("modal-summary");
   const tbody = document.getElementById("modal-stats-rows");
-  const statusEl = document.getElementById("modal-status");
-  const logoEl = document.getElementById("player-modal-logo");
+  const logoImg = document.getElementById("modal-player-logo");
 
   if (nameEl) nameEl.textContent = player.name || "Player";
   if (metaEl) {
@@ -1179,24 +1283,25 @@ function openPlayerModal(player) {
     metaEl.textContent = bits.join(" • ");
   }
 
-  if (logoEl) {
-    const teamCode = (player.team || "").toLowerCase();
-    if (teamCode) {
-      logoEl.src = `/logos/${teamCode}.png`;
-      logoEl.alt = `${player.team} logo`;
+  if (logoImg) {
+    if (player.team) {
+      logoImg.src = `logos/${encodeURIComponent(player.team)}.png`;
+      logoImg.alt = `${player.team} logo`;
+      logoImg.style.display = "";
     } else {
-      logoEl.removeAttribute("src");
-      logoEl.alt = "team logo";
+      logoImg.removeAttribute("src");
+      logoImg.style.display = "none";
     }
   }
 
   if (summaryEl)
     summaryEl.textContent = "Loading last games from BallDontLie...";
-  if (statusEl) statusEl.textContent = "";
   if (tbody) {
     tbody.innerHTML =
       '<tr><td colspan="6" class="muted">Loading...</td></tr>';
   }
+
+  currentPlayerForDetail = player;
 
   if (!player.id) {
     if (summaryEl) summaryEl.textContent = "No player id available.";
@@ -1207,7 +1312,7 @@ function openPlayerModal(player) {
     return;
   }
 
-  loadPlayerStats(player.id, 10, summaryEl, tbody, statusEl);
+  loadPlayerStats(player.id, summaryEl, tbody, 10);
 }
 
 function closePlayerModal() {
@@ -1215,11 +1320,11 @@ function closePlayerModal() {
   if (modal) modal.classList.add("hidden");
 }
 
-async function loadPlayerStats(playerId, lastN, summaryEl, tbody, statusEl) {
+async function loadPlayerStats(playerId, summaryEl, tbody, lastN) {
   try {
     const url = `/api/stats?player_id=${encodeURIComponent(
       playerId
-    )}&last_n=${encodeURIComponent(lastN)}`;
+    )}&last_n=${lastN}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error("stats fetch failed");
     const json = await res.json();
@@ -1227,24 +1332,21 @@ async function loadPlayerStats(playerId, lastN, summaryEl, tbody, statusEl) {
     const meta = json.meta || {};
 
     if (!rows.length) {
-      if (summaryEl)
-        summaryEl.textContent = "No recent games found.";
+      if (summaryEl) summaryEl.textContent = "No recent games found.";
       if (tbody) {
         tbody.innerHTML =
           '<tr><td colspan="6" class="muted">No rows.</td></tr>';
       }
-      if (statusEl) statusEl.textContent = "No games.";
       return;
     }
 
-    const lastNUsed = meta.lastN || rows.length;
+    const usedLastN = meta.lastN || rows.length;
     const teamMeta = meta.team || meta.teamAbbr || "";
     if (summaryEl) {
-      summaryEl.textContent = `Last ${lastNUsed} games${
+      summaryEl.textContent = `Last ${usedLastN} games${
         teamMeta ? ` • ${teamMeta}` : ""
       }`;
     }
-    if (statusEl) statusEl.textContent = "Detail loaded.";
 
     const trHtml = rows
       .map((r) => {
@@ -1270,7 +1372,6 @@ async function loadPlayerStats(playerId, lastN, summaryEl, tbody, statusEl) {
   } catch (err) {
     console.error(err);
     if (summaryEl) summaryEl.textContent = "Error loading stats.";
-    if (statusEl) statusEl.textContent = "Error loading stats.";
     if (tbody) {
       tbody.innerHTML =
         '<tr><td colspan="6" class="muted">Error loading stats.</td></tr>';
@@ -1278,7 +1379,7 @@ async function loadPlayerStats(playerId, lastN, summaryEl, tbody, statusEl) {
   }
 }
 
-/* ---------------- PLAYER DETAIL MODAL ---------------- */
+/* -------- Player Detail Modal (season + chart + last 50) -------- */
 
 function setupPlayerDetailModal() {
   const modal = document.getElementById("player-detail-modal");
@@ -1297,9 +1398,9 @@ function openPlayerDetailModal(player) {
 
   modal.classList.remove("hidden");
 
-  const nameEl = document.getElementById("player-detail-name");
-  const metaEl = document.getElementById("player-detail-meta");
-  const logoEl = document.getElementById("player-detail-logo");
+  const nameEl = document.getElementById("detail-player-name");
+  const metaEl = document.getElementById("detail-player-meta");
+  const logoImg = document.getElementById("detail-player-logo");
 
   if (nameEl) nameEl.textContent = player.name || "Player";
   if (metaEl) {
@@ -1310,21 +1411,18 @@ function openPlayerDetailModal(player) {
     metaEl.textContent = bits.join(" • ");
   }
 
-  if (logoEl) {
-    const teamCode = (player.team || "").toLowerCase();
-    if (teamCode) {
-      logoEl.src = `/logos/${teamCode}.png`;
-      logoEl.alt = `${player.team} logo`;
+  if (logoImg) {
+    if (player.team) {
+      logoImg.src = `logos/${encodeURIComponent(player.team)}.png`;
+      logoImg.alt = `${player.team} logo`;
+      logoImg.style.display = "";
     } else {
-      logoEl.removeAttribute("src");
-      logoEl.alt = "team logo";
+      logoImg.removeAttribute("src");
+      logoImg.style.display = "none";
     }
   }
 
-  if (!player.id) {
-    fillPlayerDetailEmpty();
-    return;
-  }
+  if (!player.id) return;
 
   loadPlayerDetail(player);
 }
@@ -1334,38 +1432,26 @@ function closePlayerDetailModal() {
   if (modal) modal.classList.add("hidden");
 }
 
-function fillPlayerDetailEmpty() {
-  const fields = [
-    "detail-snapshot-team",
-    "detail-snapshot-games",
-    "detail-snapshot-min",
-    "detail-snapshot-pts",
-    "detail-snapshot-reb",
-    "detail-snapshot-ast",
-    "detail-games-summary",
-  ];
-  fields.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = "—";
-  });
-  const avgBody = document.getElementById("detail-averages-rows");
-  if (avgBody) {
-    avgBody.innerHTML =
-      '<tr><td class="cell-left" colspan="4" class="muted">No data</td></tr>';
-  }
-  const gamesBody = document.getElementById("detail-games-rows");
-  if (gamesBody) {
-    gamesBody.innerHTML =
-      '<tr><td class="cell-left" colspan="6" class="muted">No games</td></tr>';
-  }
-  const canvas = document.getElementById("detail-pts-canvas");
-  if (canvas && canvas.getContext) {
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-}
-
 async function loadPlayerDetail(player) {
+  const teamEl = document.getElementById("detail-team");
+  const gamesEl = document.getElementById("detail-games");
+  const minEl = document.getElementById("detail-min");
+  const ptsEl = document.getElementById("detail-pts");
+  const rebEl = document.getElementById("detail-reb");
+  const astEl = document.getElementById("detail-ast");
+  const averagesBody = document.getElementById("detail-averages-rows");
+  const lastGamesBody = document.getElementById("detail-last-games-rows");
+  const lastGamesTitle = document.getElementById("detail-last-games-title");
+
+  if (averagesBody) {
+    averagesBody.innerHTML =
+      '<tr><td colspan="4" class="muted">Loading…</td></tr>';
+  }
+  if (lastGamesBody) {
+    lastGamesBody.innerHTML =
+      '<tr><td colspan="6" class="muted">Loading…</td></tr>';
+  }
+
   try {
     const url = `/api/stats?player_id=${encodeURIComponent(
       player.id
@@ -1377,93 +1463,121 @@ async function loadPlayerDetail(player) {
     const meta = json.meta || {};
 
     if (!rows.length) {
-      fillPlayerDetailEmpty();
+      if (lastGamesBody) {
+        lastGamesBody.innerHTML =
+          '<tr><td colspan="6" class="muted">No games found.</td></tr>';
+      }
+      if (averagesBody) {
+        averagesBody.innerHTML =
+          '<tr><td colspan="4" class="muted">No data.</td></tr>';
+      }
       return;
     }
 
     const games = rows.length;
-    const teamMeta = meta.team || meta.teamAbbr || player.team || "";
+    const teamMeta = meta.team || player.team || meta.teamAbbr || "";
 
-    const ptsArr = [];
-    const rebArr = [];
-    const astArr = [];
-    const minsArr = [];
+    const sums = {
+      min: 0,
+      pts: 0,
+      reb: 0,
+      ast: 0,
+    };
+
+    const ptsSeries = [];
 
     rows.forEach((r) => {
-      const pts = Number(r.pts ?? 0);
-      const reb = Number(
-        r.reb != null ? r.reb : r.reb_tot != null ? r.reb_tot : 0
-      );
-      const ast = Number(r.ast ?? 0);
-      const minStr =
-        r.min != null ? r.min : r.minutes != null ? r.minutes : "";
-      const minNum = parseMinutesToNumber(minStr);
+      const minVal =
+        typeof r.min === "number"
+          ? r.min
+          : typeof r.minutes === "number"
+          ? r.minutes
+          : parseFloat(String(r.min || r.minutes || "0").split(":")[0]) || 0;
+      const ptsVal = Number(r.pts || 0);
+      const rebVal =
+        r.reb != null ? Number(r.reb) : r.reb_tot != null ? Number(r.reb_tot) : 0;
+      const astVal = Number(r.ast || 0);
 
-      ptsArr.push(pts);
-      rebArr.push(reb);
-      astArr.push(ast);
-      minsArr.push(minNum);
+      sums.min += minVal;
+      sums.pts += ptsVal;
+      sums.reb += rebVal;
+      sums.ast += astVal;
+
+      ptsSeries.push(ptsVal);
     });
 
-    const avgMinutes = safeMean(minsArr);
-    const avgPts = safeMean(ptsArr);
-    const avgReb = safeMean(rebArr);
-    const avgAst = safeMean(astArr);
+    const avg = (total) => (games ? total / games : 0);
 
-    const l10Pts = safeMean(ptsArr.slice(-10));
-    const l5Pts = safeMean(ptsArr.slice(-5));
-    const l10Reb = safeMean(rebArr.slice(-10));
-    const l5Reb = safeMean(rebArr.slice(-5));
-    const l10Ast = safeMean(astArr.slice(-10));
-    const l5Ast = safeMean(astArr.slice(-5));
+    const season = {
+      min: avg(sums.min),
+      pts: avg(sums.pts),
+      reb: avg(sums.reb),
+      ast: avg(sums.ast),
+    };
 
-    const teamEl = document.getElementById("detail-snapshot-team");
-    const gamesEl = document.getElementById("detail-snapshot-games");
-    const minEl = document.getElementById("detail-snapshot-min");
-    const ptsEl = document.getElementById("detail-snapshot-pts");
-    const rebEl = document.getElementById("detail-snapshot-reb");
-    const astEl = document.getElementById("detail-snapshot-ast");
+    const last10 = rows.slice(0, 10);
+    const last5 = rows.slice(0, 5);
 
-    if (teamEl) teamEl.textContent = teamMeta || "—";
-    if (gamesEl) gamesEl.textContent = games.toString();
-    if (minEl) minEl.textContent = avgMinutes.toFixed(1);
-    if (ptsEl) ptsEl.textContent = avgPts.toFixed(1);
-    if (rebEl) rebEl.textContent = avgReb.toFixed(1);
-    if (astEl) astEl.textContent = avgAst.toFixed(1);
+    const avgBlock = (subset) => {
+      const n = subset.length || 1;
+      let sPts = 0,
+        sReb = 0,
+        sAst = 0;
+      subset.forEach((r) => {
+        sPts += Number(r.pts || 0);
+        sReb +=
+          r.reb != null
+            ? Number(r.reb)
+            : r.reb_tot != null
+            ? Number(r.reb_tot)
+            : 0;
+        sAst += Number(r.ast || 0);
+      });
+      return {
+        pts: sPts / n,
+        reb: sReb / n,
+        ast: sAst / n,
+      };
+    };
 
-    const avgBody = document.getElementById("detail-averages-rows");
-    if (avgBody) {
-      avgBody.innerHTML = `
+    const l10 = avgBlock(last10);
+    const l5 = avgBlock(last5);
+
+    if (teamEl) teamEl.textContent = teamMeta || "–";
+    if (gamesEl) gamesEl.textContent = String(games);
+    if (minEl) minEl.textContent = season.min.toFixed(1);
+    if (ptsEl) ptsEl.textContent = season.pts.toFixed(1);
+    if (rebEl) rebEl.textContent = season.reb.toFixed(1);
+    if (astEl) astEl.textContent = season.ast.toFixed(1);
+
+    if (averagesBody) {
+      averagesBody.innerHTML = `
         <tr>
           <td class="cell-left">PTS</td>
-          <td>${avgPts.toFixed(1)}</td>
-          <td>${l10Pts.toFixed(1)}</td>
-          <td>${l5Pts.toFixed(1)}</td>
+          <td>${season.pts.toFixed(1)}</td>
+          <td>${l10.pts.toFixed(1)}</td>
+          <td>${l5.pts.toFixed(1)}</td>
         </tr>
         <tr>
           <td class="cell-left">REB</td>
-          <td>${avgReb.toFixed(1)}</td>
-          <td>${l10Reb.toFixed(1)}</td>
-          <td>${l5Reb.toFixed(1)}</td>
+          <td>${season.reb.toFixed(1)}</td>
+          <td>${l10.reb.toFixed(1)}</td>
+          <td>${l5.reb.toFixed(1)}</td>
         </tr>
         <tr>
           <td class="cell-left">AST</td>
-          <td>${avgAst.toFixed(1)}</td>
-          <td>${l10Ast.toFixed(1)}</td>
-          <td>${l5Ast.toFixed(1)}</td>
+          <td>${season.ast.toFixed(1)}</td>
+          <td>${l10.ast.toFixed(1)}</td>
+          <td>${l5.ast.toFixed(1)}</td>
         </tr>
       `;
     }
 
-    const gamesSummary = document.getElementById("detail-games-summary");
-    if (gamesSummary) {
-      gamesSummary.textContent = `Last ${games} games${
-        teamMeta ? ` • ${teamMeta}` : ""
-      }`;
+    if (lastGamesTitle) {
+      lastGamesTitle.textContent = `Last ${games} games • ${teamMeta || ""}`;
     }
 
-    const gamesBody = document.getElementById("detail-games-rows");
-    if (gamesBody) {
+    if (lastGamesBody) {
       const trHtml = rows
         .map((r) => {
           const date = r.game_date || r.date || "";
@@ -1474,6 +1588,7 @@ async function loadPlayerDetail(player) {
           const reb =
             r.reb != null ? r.reb : r.reb_tot != null ? r.reb_tot : "";
           const ast = r.ast != null ? r.ast : "";
+
           return `<tr>
             <td class="cell-left">${escapeHtml(String(date).slice(5))}</td>
             <td class="cell-left">${escapeHtml(opp)}</td>
@@ -1484,560 +1599,21 @@ async function loadPlayerDetail(player) {
           </tr>`;
         })
         .join("");
-      gamesBody.innerHTML = trHtml;
+      lastGamesBody.innerHTML = trHtml;
     }
 
-    const canvas = document.getElementById("detail-pts-canvas");
-    if (canvas && canvas.getContext) {
-      renderPtsTrend(canvas, rows);
-    }
+    drawPlayerPtsTrend(ptsSeries);
   } catch (err) {
     console.error(err);
-    fillPlayerDetailEmpty();
-  }
-}
-
-function renderPtsTrend(canvas, rows) {
-  const ctx = canvas.getContext("2d");
-  const width = (canvas.width = canvas.clientWidth || 300);
-  const height = (canvas.height = canvas.clientHeight || 140);
-
-  if (!rows.length) {
-    ctx.clearRect(0, 0, width, height);
-    return;
-  }
-
-  const pts = rows.map((r) => Number(r.pts ?? 0));
-  const max = Math.max(...pts, 1);
-  const min = 0;
-  const mean = safeMean(pts);
-
-  const n = pts.length;
-  const paddingX = 10;
-  const paddingY = 10;
-  const innerW = width - paddingX * 2;
-  const innerH = height - paddingY * 2;
-
-  ctx.clearRect(0, 0, width, height);
-
-  // Background
-  ctx.fillStyle = "rgba(15,23,42,0.95)";
-  ctx.fillRect(0, 0, width, height);
-
-  // Mean line
-  const meanY =
-    paddingY + innerH - ((mean - min) / (max - min || 1)) * innerH;
-  ctx.strokeStyle = "rgba(148,163,184,0.6)";
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(paddingX, meanY);
-  ctx.lineTo(width - paddingX, meanY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Line
-  ctx.strokeStyle = "#fbbf24";
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  pts.forEach((v, idx) => {
-    const x =
-      paddingX +
-      (innerW * (n === 1 ? 0.5 : idx / (n - 1)));
-    const y =
-      paddingY + innerH - ((v - min) / (max - min || 1)) * innerH;
-    if (idx === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  // Points
-  ctx.fillStyle = "#fb7185";
-  pts.forEach((v, idx) => {
-    const x =
-      paddingX +
-      (innerW * (n === 1 ? 0.5 : idx / (n - 1)));
-    const y =
-      paddingY + innerH - ((v - min) / (max - min || 1)) * innerH;
-    ctx.beginPath();
-    ctx.arc(x, y, 2.2, 0, Math.PI * 2);
-    ctx.fill();
-  });
-}
-
-/* ---------------- GAME MODAL ---------------- */
-
-let currentGameContext = null;
-
-function setupGameModal() {
-  const modal = document.getElementById("game-modal");
-  if (!modal) return;
-
-  const closeBtn = document.getElementById("game-modal-close");
-  const backdrop = modal.querySelector(".modal-backdrop");
-  const statSelect = document.getElementById("game-modal-stat");
-
-  if (closeBtn) closeBtn.addEventListener("click", closeGameModal);
-  if (backdrop) backdrop.addEventListener("click", closeGameModal);
-
-  if (statSelect) {
-    statSelect.addEventListener("change", () => {
-      if (!currentGameContext) return;
-      loadGameContext(currentGameContext, statSelect.value || "pts");
-    });
-  }
-
-  document.addEventListener("click", (evt) => {
-    const row = evt.target.closest("[data-game-id]");
-    if (!row) return;
-
-    const id = row.dataset.gameId || "";
-    const home = row.dataset.gameHome || "";
-    const away = row.dataset.gameAway || "";
-    const tip = row.dataset.gameTip || "TBD";
-    const date = row.dataset.gameDate || "";
-
-    openGameModal({ id, home, away, tip, date });
-  });
-}
-
-function openGameModal(info) {
-  const modal = document.getElementById("game-modal");
-  const titleEl = document.getElementById("game-modal-title");
-  const metaEl = document.getElementById("game-modal-meta");
-  const statSelect = document.getElementById("game-modal-stat");
-
-  if (!modal) return;
-
-  currentGameContext = info;
-  modal.classList.remove("hidden");
-
-  if (titleEl) {
-    titleEl.textContent = `${info.away} @ ${info.home}`;
-  }
-  if (metaEl) {
-    const bits = [];
-    if (info.date) bits.push(info.date);
-    if (info.tip) bits.push(`Tip: ${info.tip}`);
-    metaEl.textContent = bits.join(" • ");
-  }
-
-  if (statSelect) {
-    if (!statSelect.value) statSelect.value = "pts";
-    loadGameContext(info, statSelect.value || "pts");
-  } else {
-    loadGameContext(info, "pts");
-  }
-}
-
-function closeGameModal() {
-  const modal = document.getElementById("game-modal");
-  if (modal) modal.classList.add("hidden");
-}
-
-async function loadGameContext(gameInfo, stat) {
-  const edgesEl = document.getElementById("game-modal-edges");
-  const trendingEl = document.getElementById("game-modal-trending");
-  if (edgesEl) {
-    edgesEl.innerHTML = `<p class="muted">Loading edges...</p>`;
-  }
-  if (trendingEl) {
-    trendingEl.innerHTML = `<p class="muted">Loading trends...</p>`;
-  }
-
-  const home = gameInfo.home;
-  const away = gameInfo.away;
-
-  try {
-    const [edgesRes, trendingRes] = await Promise.all([
-      fetch(`/api/edges?stat=${encodeURIComponent(stat)}&limit=200`),
-      fetch(`/api/trending?stat=${encodeURIComponent(stat)}&limit=200`),
-    ]);
-
-    let edgesData = [];
-    if (edgesRes.ok) {
-      const edgesJson = await edgesRes.json();
-      edgesData = edgesJson.data || [];
+    if (averagesBody) {
+      averagesBody.innerHTML =
+        '<tr><td colspan="4" class="muted">Error loading data.</td></tr>';
     }
-
-    let trendingData = [];
-    if (trendingRes.ok) {
-      const trendingJson = await trendingRes.json();
-      trendingData = trendingJson.data || [];
-    }
-
-    const teamsAllowed = new Set([home, away]);
-
-    const edgesFiltered = edgesData
-      .filter((p) => p.team && teamsAllowed.has(p.team))
-      .sort((a, b) => (b.delta || 0) - (a.delta || 0))
-      .slice(0, 6);
-
-    const trendingFiltered = trendingData
-      .filter((p) => p.team && teamsAllowed.has(p.team))
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
-      .slice(0, 6);
-
-    if (edgesEl) {
-      if (!edgesFiltered.length) {
-        edgesEl.innerHTML = `<p class="muted">No edges available for this matchup.</p>`;
-      } else {
-        const rows = edgesFiltered
-          .map((p) => {
-            const name = escapeHtml(p.name);
-            const team = escapeHtml(p.team || "");
-            const pos = escapeHtml(p.pos || "");
-            const deltaRaw = p.delta;
-            const delta = deltaRaw != null ? deltaRaw.toFixed(1) : "–";
-            const recent = p.recent != null ? p.recent.toFixed(1) : "–";
-            const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
-            const id =
-              p.player_id != null
-                ? String(p.player_id)
-                : p.id != null
-                ? String(p.id)
-                : "";
-
-            const tier = getEdgeTier(deltaRaw);
-
-            return `
-              <div class="overview-row"
-                   data-player-id="${id}"
-                   data-player-name="${name}"
-                   data-player-team="${team}"
-                   data-player-pos="${pos}">
-                <div class="overview-row-main">
-                  <span>${name}</span>
-                  <span class="muted">${team}${pos ? " • " + pos : ""}</span>
-                </div>
-                <div class="overview-row-meta">
-                  <div class="team-sub">Recent: ${recent} • Season: ${season}</div>
-                  <div class="team-sub">
-                    <span class="badge-soft">Δ ${delta}</span>
-                    <span class="prop-chip ${tier.cls}">${tier.label}</span>
-                  </div>
-                </div>
-              </div>
-            `;
-          })
-          .join("");
-        edgesEl.innerHTML = `<div class="modal-section-body">${rows}</div>`;
-      }
-    }
-
-    if (trendingEl) {
-      if (!trendingFiltered.length) {
-        trendingEl.innerHTML = `<p class="muted">No trending players for this matchup.</p>`;
-      } else {
-        const rows = trendingFiltered
-          .map((p) => {
-            const name = escapeHtml(p.name);
-            const team = escapeHtml(p.team || "");
-            const pos = escapeHtml(p.pos || "");
-            const score = p.score != null ? p.score.toFixed(1) : "–";
-            const id =
-              p.player_id != null
-                ? String(p.player_id)
-                : p.id != null
-                ? String(p.id)
-                : "";
-
-            return `
-              <div class="overview-row"
-                   data-player-id="${id}"
-                   data-player-name="${name}"
-                   data-player-team="${team}"
-                   data-player-pos="${pos}">
-                <div class="overview-row-main">
-                  <span>${name}</span>
-                  <span class="muted">${team}${pos ? " • " + pos : ""}</span>
-                </div>
-                <div class="overview-row-meta">
-                  <div>${score} ${stat.toUpperCase()}</div>
-                </div>
-              </div>
-            `;
-          })
-          .join("");
-        trendingEl.innerHTML = `<div class="modal-section-body">${rows}</div>`;
-      }
-    }
-  } catch (err) {
-    console.error(err);
-    if (edgesEl)
-      edgesEl.innerHTML = `<p class="muted">Error loading edges.</p>`;
-    if (trendingEl)
-      trendingEl.innerHTML = `<p class="muted">Error loading trends.</p>`;
-  }
-}
-
-/* ---------------- EDGE BOARD MODAL ---------------- */
-
-const edgeBoardState = {
-  byStat: {}, // stat -> raw rows
-  currentStat: "pts",
-  position: "",
-  team: "",
-};
-
-function setupEdgeBoardModal() {
-  const modal = document.getElementById("edge-modal");
-  if (!modal) return;
-
-  const closeBtn = document.getElementById("edge-modal-close");
-  const backdrop = modal.querySelector(".modal-backdrop");
-  const statSelect = document.getElementById("edge-modal-stat");
-  const posSelect = document.getElementById("edge-modal-position");
-  const teamSelect = document.getElementById("edge-modal-team");
-
-  if (closeBtn) closeBtn.addEventListener("click", closeEdgeBoardModal);
-  if (backdrop) backdrop.addEventListener("click", closeEdgeBoardModal);
-
-  if (statSelect) {
-    statSelect.addEventListener("change", () => {
-      edgeBoardState.currentStat = statSelect.value || "pts";
-      ensureEdgeBoardData(edgeBoardState.currentStat).then(() => {
-        renderEdgeBoardTable();
-      });
-    });
-  }
-
-  if (posSelect) {
-    posSelect.addEventListener("change", () => {
-      edgeBoardState.position = posSelect.value || "";
-      renderEdgeBoardTable();
-    });
-  }
-
-  if (teamSelect) {
-    teamSelect.addEventListener("change", () => {
-      edgeBoardState.team = teamSelect.value || "";
-      renderEdgeBoardTable();
-    });
-  }
-}
-
-function openEdgeBoardModal() {
-  const modal = document.getElementById("edge-modal");
-  const statSelect = document.getElementById("edge-modal-stat");
-  if (!modal) return;
-
-  modal.classList.remove("hidden");
-
-  const stat = statSelect?.value || edgeBoardState.currentStat || "pts";
-  edgeBoardState.currentStat = stat;
-  ensureEdgeBoardData(stat).then(() => {
-    renderEdgeBoardTable();
-  });
-}
-
-function closeEdgeBoardModal() {
-  const modal = document.getElementById("edge-modal");
-  if (modal) modal.classList.add("hidden");
-}
-
-async function ensureEdgeBoardData(stat) {
-  if (edgeBoardState.byStat[stat]) return;
-
-  const tbody = document.getElementById("edge-modal-rows");
-  if (tbody) {
-    tbody.innerHTML =
-      '<tr><td colspan="7" class="muted">Loading edge board...</td></tr>';
-  }
-
-  try {
-    const params = new URLSearchParams();
-    params.set("stat", stat);
-    params.set("limit", "200");
-    const res = await fetch(`/api/edges?${params.toString()}`);
-    if (!res.ok) throw new Error("Failed to load edges");
-    const json = await res.json();
-    edgeBoardState.byStat[stat] = json.data || [];
-  } catch (err) {
-    console.error(err);
-    if (tbody) {
-      tbody.innerHTML =
-        '<tr><td colspan="7" class="muted">Error loading edge board.</td></tr>';
+    if (lastGamesBody) {
+      lastGamesBody.innerHTML =
+        '<tr><td colspan="6" class="muted">Error loading data.</td></tr>';
     }
   }
 }
 
-function renderEdgeBoardTable() {
-  const stat = edgeBoardState.currentStat || "pts";
-  const raw = edgeBoardState.byStat[stat] || [];
-  const posFilter = (edgeBoardState.position || "").toUpperCase();
-  const teamFilter = edgeBoardState.team || "";
-
-  const tbody = document.getElementById("edge-modal-rows");
-  if (!tbody) return;
-
-  let rows = raw;
-
-  if (posFilter) {
-    rows = rows.filter((p) =>
-      (p.pos || "").toUpperCase().includes(posFilter)
-    );
-  }
-
-  if (teamFilter) {
-    rows = rows.filter((p) => p.team === teamFilter);
-  }
-
-  rows = rows.slice().sort((a, b) => (b.delta || 0) - (a.delta || 0));
-
-  const limited = rows.slice(0, 50);
-
-  if (!limited.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="7" class="muted">No edges match these filters.</td></tr>';
-    return;
-  }
-
-  const label = stat.toUpperCase();
-
-  const html = limited
-    .map((p) => {
-      const name = escapeHtml(p.name || "");
-      const team = escapeHtml(p.team || "");
-      const pos = escapeHtml(p.pos || "");
-      const recent = p.recent != null ? p.recent.toFixed(1) : "–";
-      const season = p.seasonAvg != null ? p.seasonAvg.toFixed(1) : "–";
-      const deltaRaw = p.delta;
-      const delta = deltaRaw != null ? deltaRaw.toFixed(1) : "–";
-      const id =
-        p.player_id != null
-          ? String(p.player_id)
-          : p.id != null
-          ? String(p.id)
-          : "";
-
-      const tier = getEdgeTier(deltaRaw);
-
-      return `
-        <tr data-player-id="${id}"
-            data-player-name="${name}"
-            data-player-team="${team}"
-            data-player-pos="${pos}">
-          <td class="cell-left">${name}</td>
-          <td>${team}</td>
-          <td>${pos}</td>
-          <td>${label}</td>
-          <td>${recent}</td>
-          <td>${season}</td>
-          <td>
-            ${delta}
-            <div class="prop-chip ${tier.cls}" style="margin-top:2px;">${tier.label}</div>
-          </td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  tbody.innerHTML = html;
-}
-
-function populateEdgeBoardTeamsFilter() {
-  const teamSelect = document.getElementById("edge-modal-team");
-  if (!teamSelect) return;
-  if (!cachedTeams || !cachedTeams.length) return;
-
-  const opts = ['<option value="">All teams</option>'];
-  cachedTeams.forEach((t) => {
-    if (!t.team) return;
-    opts.push(
-      `<option value="${escapeHtml(t.team)}">${escapeHtml(t.team)}</option>`
-    );
-  });
-  teamSelect.innerHTML = opts.join("");
-}
-
-/* ---------------- UTIL ---------------- */
-
-function buildDate(range) {
-  const today = new Date();
-  const targetDate = new Date(
-    today.getTime() + (range === "tomorrow" ? 86400000 : 0)
-  );
-  const yyyy = targetDate.getUTCFullYear();
-  const mm = String(targetDate.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(targetDate.getUTCDate()).padStart(2, "0");
-  return { dateStr: `${yyyy}-${mm}-${dd}` };
-}
-
-function debounce(fn, delay) {
-  let id;
-  return (...args) => {
-    clearTimeout(id);
-    id = setTimeout(() => fn(...args), delay);
-  };
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-// Classify an edge into a tier (red / yellow / green) and
-// provide both chip class and mini-bar class.
-function getEdgeTier(delta) {
-  if (delta == null || isNaN(delta)) {
-    return {
-      cls: "prop-chip-na",
-      barCls: "edge-delta-bar-fill-na",
-      label: "Neutral",
-    };
-  }
-
-  const val = Number(delta);
-
-  if (val >= 4) {
-    return {
-      cls: "prop-chip-high",
-      barCls: "edge-delta-bar-fill-high",
-      label: "High",
-    };
-  }
-  if (val >= 2) {
-    return {
-      cls: "prop-chip-med",
-      barCls: "edge-delta-bar-fill-med",
-      label: "Medium",
-    };
-  }
-  if (val > 0) {
-    return {
-      cls: "prop-chip-low",
-      barCls: "edge-delta-bar-fill-low",
-      label: "Low",
-    };
-  }
-
-  return {
-    cls: "prop-chip-na",
-    barCls: "edge-delta-bar-fill-na",
-    label: "Neutral",
-  };
-}
-
-function parseMinutesToNumber(minStr) {
-  if (!minStr) return 0;
-  if (typeof minStr === "number") return minStr;
-  const parts = String(minStr).split(":");
-  if (parts.length !== 2) {
-    const v = Number(minStr);
-    return isNaN(v) ? 0 : v;
-  }
-  const m = Number(parts[0]);
-  const s = Number(parts[1]);
-  if (isNaN(m) || isNaN(s)) return 0;
-  return m + s / 60;
-}
-
-function safeMean(arr) {
-  if (!arr || !arr.length) return 0;
-  const sum = arr.reduce((acc, v) => acc + (Number(v) || 0), 0);
-  return sum / arr.length;
-}
+function draw
